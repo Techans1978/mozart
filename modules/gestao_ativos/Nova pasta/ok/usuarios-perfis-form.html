@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <title>Usuários/Perfis • RBAC</title>
+  
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="includes/css/style_gestao_ativos.css?v=1.0.0">
+
+</head>
+<body class="bpm">
+  <div class="container">
+    
+<header class="toolbar">
+  <h1>Usuários & Perfis — Cadastro</h1>
+  <div class="actions">
+    <a class="btn" href="usuarios-listar.html">Listar usuários</a>
+    <a class="btn" href="perfis-listar.html">Listar perfis</a>
+  </div>
+</header>
+
+<div class="card">
+  <p class="subtitle">Usuário</p>
+  <div class="grid cols-3">
+    <div><label>Nome completo *</label><input type="text" placeholder="Fulano da Silva"/></div>
+    <div><label>E-mail *</label><input type="email" placeholder="fulano@empresa.com.br"/></div>
+    <div><label>Status *</label><select><option>Ativo</option><option>Inativo</option></select></div>
+  </div>
+  <div class="grid cols-3">
+    <div><label>Login *</label><input type="text" placeholder="fulano.silva"/></div>
+    <div><label>Telefone</label><input type="tel" placeholder="(11) 90000-0000"/></div>
+    <div><label>Empresa/Entidade *</label><select><option>Matriz</option><option>Filial 01</option></select></div>
+  </div>
+  <div class="grid cols-3">
+    <div><label>Setor</label><input type="text" placeholder="TI / Loja / Depósito"/></div>
+    <div><label>Perfil *</label><select><option>Administrador</option><option>Gestor de Ativos</option><option>Operador</option><option>Solicitante</option></select></div>
+    <div><label>Autenticação</label><select><option>Senha local</option><option>SSO (AD/OIDC)</option></select></div>
+  </div>
+
+  <div class="divider"></div>
+  <p class="subtitle">Assinatura & permissões específicas</p>
+  <div class="grid cols-3">
+    <div class="card-muted">
+      <label><input type="checkbox"/> Pode aprovar reservas</label><br/>
+      <label><input type="checkbox"/> Pode inativar categorias</label><br/>
+      <label><input type="checkbox"/> Pode baixar ativos</label>
+    </div>
+    <div class="card-muted">
+      <label><input type="checkbox"/> Pode editar contratos</label><br/>
+      <label><input type="checkbox"/> Pode transferir ativos</label><br/>
+      <label><input type="checkbox"/> Pode sub-locar</label>
+    </div>
+    <div class="card-muted">
+      <label><input type="checkbox"/> Ver custos</label><br/>
+      <label><input type="checkbox"/> Ver dados pessoais (LGPD)</label><br/>
+      <label><input type="checkbox"/> Exportar CSV</label>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div style="display:flex;justify-content:flex-end;gap:10px">
+    <button class="btn" type="button">Cancelar</button>
+    <button class="btn primary" type="button">Salvar usuário (visual)</button>
+  </div>
+</div>
+
+<form class="card" autocomplete="off" novalidate>
+  <p class="subtitle">Perfil (RBAC)</p>
+  <div class="grid cols-3">
+    <div><label>Nome do perfil *</label><input type="text" placeholder="Ex.: Gestor de Ativos"/></div>
+    <div><label>Status *</label><select><option>Ativo</option><option>Inativo</option></select></div>
+    <div><label>Escopo *</label><select><option>Global</option><option>Por entidade</option><option>Por local/setor</option></select></div>
+  </div>
+
+  <div class="grid">
+    <div class="table-wrap">
+      <table class="table is-compact is-hover">
+        <thead>
+          <tr>
+            <th>Módulo / Recurso</th>
+            <th>Ver</th>
+            <th>Criar</th>
+            <th>Editar</th>
+            <th>Excluir</th>
+            <th>Inativar/Reativar</th>
+            <th>Exportar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Categorias</td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+          </tr>
+          <tr>
+            <td>Modelos</td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+          </tr>
+          <tr>
+            <td>Ativos</td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+          </tr>
+          <tr>
+            <td>Contratos</td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+          </tr>
+          <tr>
+            <td>Reservas</td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+          </tr>
+          <tr>
+            <td>Transferências</td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+          </tr>
+          <tr>
+            <td>Sub-locação</td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox"></td>
+          </tr>
+          <tr>
+            <td>Admin (Usuários/Perfis)</td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+            <td><input type="checkbox" checked></td>
+          </tr>
+        </tbody>
+      </table>
+      <span class="hint">Este é um mock visual da matriz de permissões (RBAC).</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div style="display:flex;justify-content:flex-end;gap:10px">
+    <button class="btn" type="button">Cancelar</button>
+    <button class="btn primary" type="button">Salvar perfil (visual)</button>
+  </div>
+</form>
+
+<div class="card"><p class="hint">Mock visual. Depois definimos a modelagem (users, roles, role_permissions, scopes).</p></div>
+
+  </div>
+  
+</body>
+</html>

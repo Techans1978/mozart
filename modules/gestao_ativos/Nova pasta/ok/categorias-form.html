@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Categorias • Cadastro</title>
+  <link rel="stylesheet" href="includes/css/style_gestao_ativos.css?v=1.0.0">
+</head>
+<body class="bpm">
+  <div class="container">
+    <header class="toolbar">
+      <h1>Categorias — Cadastro</h1>
+      <div class="actions">
+        <a class="btn" href="categorias-listar.html">Listar categorias</a>
+      </div>
+    </header>
+
+    <form class="card" autocomplete="off" novalidate>
+      <p class="subtitle">Identificação</p>
+      <div class="grid cols-2">
+        <div>
+          <label>Nome da categoria *</label>
+          <input type="text" placeholder="Ex.: Notebook, Impressora térmica, Balança checkout" />
+          <div class="error-text hidden">Informe o nome.</div>
+        </div>
+        <div>
+          <label>Código interno</label>
+          <input type="text" placeholder="Para integração/ERP (opcional)" />
+        </div>
+      </div>
+
+      <div class="grid cols-2">
+        <div>
+          <label>Natureza *</label>
+          <div class="toggle" role="tablist" aria-label="Natureza da categoria">
+            <input type="radio" id="nat-ativo" name="natureza" checked>
+            <label for="nat-ativo">Ativo</label>
+            <input type="radio" id="nat-consumivel" name="natureza">
+            <label for="nat-consumivel">Consumível</label>
+            <input type="radio" id="nat-peca" name="natureza">
+            <label for="nat-peca">Peça</label>
+            <input type="radio" id="nat-kit" name="natureza">
+            <label for="nat-kit">Kit</label>
+          </div>
+        </div>
+        <div>
+          <label>Status *</label>
+          <select>
+            <option value="ATIVA">Ativa</option>
+            <option value="INATIVA">Inativa</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid cols-2">
+        <div>
+          <label>Categoria pai (opcional)</label>
+          <select>
+            <option value="">— sem pai —</option>
+            <option>Informática</option>
+            <option>Periféricos</option>
+            <option>Balancas</option>
+          </select>
+          <span class="hint">Permite árvore/hierarquia de categorias.</span>
+        </div>
+        <div>
+          <label>Entidade/Empresa (se aplicável)</label>
+          <select>
+            <option value="">—</option>
+            <option>Matriz</option>
+            <option>Filial 01</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid cols-2">
+        <div>
+          <label>Setores permitidos (opcional)</label>
+          <select multiple>
+            <option>TI</option>
+            <option>Loja</option>
+            <option>Depósito</option>
+            <option>Administrativo</option>
+          </select>
+          <span class="hint">Segure Ctrl/Cmd para selecionar vários.</span>
+        </div>
+        <div class="grid cols-2">
+          <div>
+            <label>Ícone/emoji (opcional)</label>
+            <input type="text" placeholder="Ex.: 🖨️" />
+          </div>
+          <div>
+            <label>Cor</label>
+            <input type="color" value="#3b82f6" />
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div>
+          <label>Descrição</label>
+          <textarea placeholder="Use para orientar o cadastro e padronizar itens desta categoria."></textarea>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="subtitle">Regras por natureza</p>
+      <div class="grid cols-2">
+        <div class="card-muted">
+          <label><input type="checkbox" /> Exigir manutenção preventiva por padrão</label><br>
+          <label><input type="checkbox" /> Exigir termo de responsabilidade em empréstimos</label><br>
+          <label><input type="checkbox" /> Habilitar reservas para itens desta categoria</label>
+        </div>
+        <div class="card-muted">
+          <label><input id="chk-serial" type="checkbox" /> Rastrear por número de série</label><br>
+          <span class="hint">Para Consumível/Peça, ative se cada unidade tiver série.</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="subtitle">Template de atributos (opcional)</p>
+      <div class="hint" style="margin-bottom:6px">
+        Defina campos que aparecerão ao cadastrar um item desta categoria (ex.: em “Notebook”: CPU, RAM, SSD…).
+      </div>
+      <div id="tpl-attrs" class="stack"></div>
+      <button type="button" class="btn small" id="btn-add-attr">+ Adicionar campo</button>
+
+      <div class="divider"></div>
+
+      <!-- NOVA SEÇÃO: Itens atrelados padrão -->
+      <p class="subtitle">Itens atrelados padrão</p>
+      <div class="hint" style="margin-bottom:6px">
+        Acessórios/complementos que <b>normalmente acompanham</b> itens desta categoria (ex.: PC → monitor, mouse, teclado; Telefone → capa, fone).
+      </div>
+
+      <div id="tpl-atrelados" class="stack"></div>
+      <button type="button" class="btn small" id="btn-add-atrelado">+ Adicionar item atrelado</button>
+
+      <div class="divider"></div>
+
+      <div class="foot-actions" style="display:flex;justify-content:flex-end;gap:10px">
+        <button type="button" class="btn">Cancelar</button>
+        <button type="button" class="btn primary">Salvar (visual)</button>
+      </div>
+    </form>
+
+    <div class="card">
+      <p class="hint">Mock visual. Depois mapeamos as tabelas e ações (salvar, inativar, listar).</p>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Template de atributos ----------
+    function makeAttrRow() {
+      const wrap = document.createElement('div');
+      wrap.className = 'grid cols-4';
+      wrap.style.alignItems = 'end';
+      wrap.innerHTML = `
+        <div>
+          <label>Nome do campo *</label>
+          <input type="text" placeholder="Ex.: CPU, RAM (GB), Voltagem" />
+        </div>
+        <div>
+          <label>Tipo *</label>
+          <select>
+            <option>Texto</option>
+            <option>Número</option>
+            <option>Lista (predef.)</option>
+            <option>Data</option>
+            <option>Sim/Não</option>
+          </select>
+        </div>
+        <div>
+          <label>Obrigatório?</label>
+          <select>
+            <option>Não</option>
+            <option>Sim</option>
+          </select>
+        </div>
+        <div class="row">
+          <button type="button" class="btn small danger">Remover</button>
+        </div>
+        <div class="cols-span-4">
+          <label>Opções (para “Lista” — separadas por ;)</label>
+          <input type="text" placeholder="Ex.: i3;i5;i7;i9 (apenas se tipo=Lista)" />
+        </div>
+      `;
+      wrap.querySelector('.btn.danger').addEventListener('click', ()=> wrap.remove());
+      return wrap;
+    }
+
+    const attrList = document.getElementById('tpl-attrs');
+    const btnAddAttr = document.getElementById('btn-add-attr');
+    btnAddAttr.addEventListener('click', () => attrList.appendChild(makeAttrRow()));
+    // Começa com duas linhas de exemplo
+    attrList.appendChild(makeAttrRow());
+    attrList.appendChild(makeAttrRow());
+
+    // ---------- Itens atrelados padrão ----------
+    function makeAtreladoRow() {
+      const wrap = document.createElement('div');
+      wrap.className = 'grid cols-4';
+      wrap.style.alignItems = 'end';
+      wrap.innerHTML = `
+        <div>
+          <label>Referência *</label>
+          <select>
+            <option>Categoria (genérica)</option>
+            <option>Modelo específico</option>
+          </select>
+        </div>
+        <div>
+          <label>Item *</label>
+          <input type="text" placeholder="Ex.: Monitor 24\" ou 'Monitor (categoria)'" />
+        </div>
+        <div>
+          <label>Função/rótulo</label>
+          <input type="text" placeholder="Ex.: tela, mouse, teclado, capa, fone, fonte" />
+        </div>
+        <div class="row">
+          <button type="button" class="btn small danger">Remover</button>
+        </div>
+        <div>
+          <label>Quantidade padrão</label>
+          <input type="number" min="1" value="1" />
+        </div>
+        <div>
+          <label>Obrigatório?</label>
+          <select>
+            <option>Não</option>
+            <option>Sim</option>
+          </select>
+        </div>
+        <div>
+          <label>Consumível?</label>
+          <select>
+            <option>Não</option>
+            <option>Sim</option>
+          </select>
+        </div>
+        <div>
+          <label>Serial obrigatório?</label>
+          <select>
+            <option>Não</option>
+            <option>Sim</option>
+          </select>
+        </div>
+        <div class="cols-span-4">
+          <label>Comportamento</label>
+          <div class="row">
+            <label><input type="checkbox" /> Criar automaticamente no cadastro do ativo</label>
+            <label><input type="checkbox" /> Visível no Portal QR</label>
+          </div>
+        </div>
+      `;
+      wrap.querySelector('.btn.danger').addEventListener('click', ()=> wrap.remove());
+      return wrap;
+    }
+
+    const atreladosList = document.getElementById('tpl-atrelados');
+    const btnAddAtrelado = document.getElementById('btn-add-atrelado');
+    btnAddAtrelado.addEventListener('click', () => atreladosList.appendChild(makeAtreladoRow()));
+    // Começa com um exemplo
+    atreladosList.appendChild(makeAtreladoRow());
+  </script>
+</body>
+</html>

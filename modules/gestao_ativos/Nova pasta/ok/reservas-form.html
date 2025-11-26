@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <title>Reservas • Cadastro</title>
+  
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="includes/css/style_gestao_ativos.css?v=1.0.0">
+
+</head>
+<body class="bpm">
+  <div class="container">
+    
+<header class="toolbar">
+  <h1>Reservas — Cadastro</h1>
+  <div class="actions">
+    <a class="btn" href="reservas-listar.html">Listar reservas</a>
+  </div>
+</header>
+
+<form class="card" autocomplete="off" novalidate>
+  <p class="subtitle">Dados da reserva</p>
+  <div class="grid cols-3">
+    <div><label>Solicitante *</label><input type="text" placeholder="Nome/Usuário"/></div>
+    <div><label>Empresa/Entidade *</label><select><option>Matriz</option><option>Filial 01</option></select></div>
+    <div><label>Setor</label><input type="text" placeholder="Ex.: TI / Loja Centro"/></div>
+  </div>
+
+  <div class="grid cols-4">
+    <div><label>Início *</label><input type="date"/></div>
+    <div><label>Hora início</label><input type="time"/></div>
+    <div><label>Fim *</label><input type="date"/></div>
+    <div><label>Hora fim</label><input type="time"/></div>
+  </div>
+
+  <div class="grid cols-3">
+    <div><label>Recorrência</label>
+      <select>
+        <option>Nenhuma</option><option>Diária</option><option>Semanal</option>
+        <option>Mensal</option>
+      </select>
+    </div>
+    <div><label>Necessita aprovação?</label><select><option>Não</option><option>Sim</option></select></div>
+    <div><label>Prioridade</label><select><option>Normal</option><option>Alta</option><option>Crítica</option></select></div>
+  </div>
+
+  <div class="divider"></div>
+  <p class="subtitle">Itens reservados</p>
+  <div id="res-itens" class="stack"></div>
+  <button type="button" class="btn small" id="res-add-item">+ Adicionar item</button>
+
+  <div class="divider"></div>
+  <p class="subtitle">Logística</p>
+  <div class="grid cols-3">
+    <div><label>Retirada em</label><input type="text" placeholder="Depósito/Endereço"/></div>
+    <div><label>Devolução em</label><input type="text" placeholder="Depósito/Endereço"/></div>
+    <div><label>Transporte</label><select><option>Retirada pelo solicitante</option><option>Entrega interna</option><option>Transportadora</option></select></div>
+  </div>
+
+  <div class="divider"></div>
+  <p class="subtitle">Regras/política</p>
+  <div class="grid cols-2">
+    <div class="card-muted">
+      <label><input type="checkbox"/> Exigir termo de responsabilidade na retirada</label><br/>
+      <label><input type="checkbox"/> Bloquear atraso superior a 24h</label><br/>
+      <label><input type="checkbox"/> Gerar ticket automático se houver dano</label>
+    </div>
+    <div class="card-muted">
+      <label><input type="checkbox"/> Priorizar itens com menor uso</label><br/>
+      <label><input type="checkbox"/> Permitir substituto equivalente</label><br/>
+      <label><input type="checkbox"/> Notificar supervisor do setor</label>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div style="display:flex;justify-content:flex-end;gap:10px">
+    <button class="btn" type="button">Cancelar</button>
+    <button class="btn primary" type="button">Salvar (visual)</button>
+  </div>
+</form>
+
+<div class="card"><p class="hint">Mock visual. Depois mapeamos conflitos/agenda e aprovações.</p></div>
+
+  </div>
+  
+<script>
+function resItemRow(){
+  const el=document.createElement('div'); el.className='grid cols-4'; el.style.alignItems='end';
+  el.innerHTML=`
+    <div><label>Tipo</label><select><option>Categoria</option><option>Modelo</option><option>Ativo</option></select></div>
+    <div><label>Item</label><input type="text" placeholder="Ex.: Notebook / Latitude 5440 / TAG-001"/></div>
+    <div><label>Qtd</label><input type="number" min="1" value="1"/></div>
+    <div class="row"><button type="button" class="btn small danger">Remover</button></div>
+    <div class="cols-span-4"><label>Observações</label><input type="text" placeholder="Acessórios, requisitos, etc."/></div>
+  `;
+  el.querySelector('.btn.danger').addEventListener('click',()=>el.remove()); return el;
+}
+const resList=document.getElementById('res-itens');
+document.getElementById('res-add-item').addEventListener('click',()=>resList.appendChild(resItemRow()));
+resList.appendChild(resItemRow());
+</script>
+
+</body>
+</html>

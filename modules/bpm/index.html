@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Mozart BPM — Designer</title>
+
+  <!-- CSS das libs (copie para vendor/) -->
+  <link rel="stylesheet" href="vendor/bpmn-js/dist/assets/diagram-js.css">
+  <link rel="stylesheet" href="vendor/bpmn-js/dist/assets/bpmn-js.css">
+  <link rel="stylesheet" href="vendor/@bpmn-io/bpmn-properties-panel/dist/assets/properties-panel.css">
+  <link rel="stylesheet" href="vendor/diagram-js-minimap/assets/diagram-js-minimap.css">
+  <link rel="stylesheet" href="vendor/bpmn-js-token-simulation/assets/css/token-simulation.css">
+
+  <!-- CSS do app -->
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+  <div class="toolbar">
+    <div class="left">
+      <button id="btnNew" title="Novo diagrama">Novo</button>
+      <button id="btnOpen" title="Abrir BPMN (.bpmn)">Abrir</button>
+      <button id="btnSave" title="Salvar">Salvar</button>
+      <button id="btnSaveAs" title="Salvar como…">Salvar como…</button>
+      <button id="btnExportXml" title="Exportar XML">Exportar XML</button>
+      <button id="btnExportSvg" title="Exportar SVG">Exportar SVG</button>
+    </div>
+    <div class="right">
+      <button id="btnAISuggest" title="Criar com IA">Criar com IA</button>
+      <button id="btnToggleSim" title="Simulação de Tokens">Simulação</button>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div id="canvas"></div>
+    <div id="properties"></div>
+  </div>
+
+  <!-- JS das libs (copie para vendor/) -->
+  <script src="vendor/bpmn-js/bpmn-modeler.development.js"></script>
+  <script src="vendor/@bpmn-io/bpmn-properties-panel/bpmn-properties-panel.umd.js"></script>
+  <script src="vendor/diagram-js-minimap/diagram-js-minimap.umd.js"></script>
+  <script src="vendor/bpmn-js-token-simulation/bpmn-js-token-simulation.umd.js"></script>
+  <script src="vendor/camunda-bpmn-js-behaviors/camunda-bpmn-js-behaviors.umd.js"></script>
+
+  <!-- App -->
+  <script src="js/storage.js"></script>
+  <script src="js/ai-hooks.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

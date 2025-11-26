@@ -1,0 +1,1 @@
+0 8 * * * /usr/bin/php -d detect_unicode=0 /caminho/para/public/cron/licencas-alertas.php >> /var/log/mozart/licencas-alertas.log 2>&1

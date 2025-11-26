@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <title>Sub-locação • Cadastro</title>
+  
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="includes/css/style_gestao_ativos.css?v=1.0.0">
+
+</head>
+<body class="bpm">
+  <div class="container">
+    
+<header class="toolbar">
+  <h1>Sub-locação — Cadastro</h1>
+  <div class="actions">
+    <a class="btn" href="sublocacoes-listar.html">Listar sub-locações</a>
+  </div>
+</header>
+
+<form class="card" autocomplete="off" novalidate>
+  <p class="subtitle">Identificação</p>
+  <div class="grid cols-3">
+    <div><label>Contrato (origem) *</label><input type="text" placeholder="Nº ou nome do contrato principal"/></div>
+    <div><label>Empresa/Entidade *</label><select><option>Matriz</option><option>Filial 01</option></select></div>
+    <div><label>Status *</label><select><option>Ativa</option><option>Encerrada</option><option>Suspensa</option></select></div>
+  </div>
+
+  <div class="grid cols-3">
+    <div><label>Setor/Loja destino *</label><input type="text" placeholder="Ex.: Loja Centro / TI / Depósito"/></div>
+    <div><label>Responsável no destino *</label><input type="text" placeholder="Nome/Usuário"/></div>
+    <div><label>Centro de custo</label><input type="text"/></div>
+  </div>
+
+  <div class="divider"></div>
+  <p class="subtitle">Vigência e condições</p>
+  <div class="grid cols-4">
+    <div><label>Início *</label><input type="date"/></div>
+    <div><label>Fim *</label><input type="date"/></div>
+    <div><label>Renovação automática</label><select><option>Não</option><option>Sim</option></select></div>
+    <div><label>Multa/Rescisão</label><input type="text" placeholder="Opcional"/></div>
+  </div>
+
+  <div class="grid cols-3">
+    <div><label>Faturamento</label><select><option>Sem faturamento</option><option>Rateio interno</option><option>Repasse integral</option></select></div>
+    <div><label>Valor mensal (se houver)</label><input type="number" min="0" step="0.01"/></div>
+    <div><label>Moeda</label><input type="text" placeholder="BRL"/></div>
+  </div>
+
+  <div class="divider"></div>
+  <p class="subtitle">Regras operacionais</p>
+  <div class="grid cols-2">
+    <div class="card-muted">
+      <label><input type="checkbox"/> Inclusão automática de manutenção preventiva</label><br/>
+      <label><input type="checkbox"/> Exigir termo de responsabilidade do setor</label><br/>
+      <label><input type="checkbox"/> Proibir realocação sem autorização</label>
+    </div>
+    <div class="card-muted">
+      <label><input type="checkbox"/> Itens acompanham transferências do setor</label><br/>
+      <label><input type="checkbox"/> Exigir devolução ao encerrar sub-locação</label><br/>
+      <label><input type="checkbox"/> Habilitar reservas internas desses itens</label>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <p class="subtitle">Itens da sub-locação</p>
+  <div id="sl-itens" class="stack"></div>
+  <button type="button" class="btn small" id="sl-add-item">+ Adicionar item</button>
+
+  <div class="divider"></div>
+  <p class="subtitle">Documentos</p>
+  <div class="grid cols-3">
+    <div class="stack">
+      <label>Termo de sub-locação (PDF)</label>
+      <div class="file-zone">Arraste aqui ou <button type="button" class="btn small">escolher</button><input type="file" accept="application/pdf"/></div>
+    </div>
+    <div class="stack">
+      <label>Anexos</label>
+      <div class="file-zone">Arraste aqui ou <button type="button" class="btn small">escolher</button><input type="file" multiple/></div>
+    </div>
+    <div class="stack">
+      <label>Outros</label>
+      <div class="file-zone">Arraste aqui ou <button type="button" class="btn small">escolher</button><input type="file" multiple/></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div style="display:flex;justify-content:flex-end;gap:10px">
+    <button class="btn" type="button">Cancelar</button>
+    <button class="btn primary" type="button">Salvar (visual)</button>
+  </div>
+</form>
+
+<div class="card"><p class="hint">Mock visual. Depois mapeamos vínculos com contratos e regras de devolução.</p></div>
+
+  </div>
+  
+<script>
+function slItemRow(){
+  const el=document.createElement('div'); el.className='grid cols-4'; el.style.alignItems='end';
+  el.innerHTML=`
+    <div><label>Ativo/Modelo *</label><input type="text" placeholder="Tag/Serial ou modelo"/></div>
+    <div><label>Quantidade</label><input type="number" min="1" value="1"/></div>
+    <div><label>Obrigatório?</label><select><option>Não</option><option>Sim</option></select></div>
+    <div class="row"><button type="button" class="btn small danger">Remover</button></div>
+    <div class="cols-span-4"><label>Observações</label><input type="text" placeholder="Ex.: acompanha monitor e teclado"/></div>
+  `;
+  el.querySelector('.btn.danger').addEventListener('click',()=>el.remove()); return el;
+}
+const slList=document.getElementById('sl-itens');
+document.getElementById('sl-add-item').addEventListener('click',()=>slList.appendChild(slItemRow()));
+slList.appendChild(slItemRow());
+</script>
+
+</body>
+</html>

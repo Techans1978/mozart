@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mozart — Form Builder (form-js)</title>
+
+<!-- CSS locais (ajuste o caminho se sua pasta for diferente) -->
+<link rel="stylesheet" href="./vendor/form-js@1.17.0/dist/assets/form-js.css" />
+<link rel="stylesheet" href="./vendor/form-js@1.17.0/dist/assets/form-js-editor.css" />
+
+<style>
+  :root { --gap: 12px; --panel-w: 420px; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:#f6f7f9; color:#111; }
+  .toolbar { position:sticky; top:0; z-index:5; display:flex; gap:8px; align-items:center; padding:10px 12px; background:#fff; border-bottom:1px solid #e5e7eb; }
+  .toolbar .spacer{ flex:1; }
+  .btn { border:1px solid #d1d5db; background:#fff; padding:8px 12px; border-radius:10px; font-weight:600; cursor:pointer; }
+  .btn:hover { background:#f3f4f6; }
+  .btn.primary { background:#111827; color:#fff; border-color:#111827; }
+  .wrap { display:flex; gap:var(--gap); padding:var(--gap); height: calc(100vh - 58px); }
+  .col { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+  #editorCol { flex:1; min-width:500px; position: relative; }
+  #previewCol { flex:0 0 var(--panel-w); min-width:320px; }
+  #editorHost, #codeHost { flex:1; min-height:520px; }
+  #codeHost textarea { width:100%; height:100%; border:0; padding:12px; font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; outline:none; }
+  #previewHead { padding:10px 12px; border-bottom:1px solid #e5e7eb; display:flex; gap:8px; align-items:center; }
+  #previewBody { padding:12px; overflow:auto; }
+  #preview { min-height:520px; border:1px solid #e5e7eb; border-radius:8px; padding:12px; }
+  .mode { font-size:12px; color:#6b7280; margin-left:6px; }
+  input[type="file"] { display:none; }
+  .rowline { display:flex; gap:8px; align-items:center; }
+  .rowline input[type="text"] { border:1px solid #d1d5db; border-radius:8px; padding:6px 8px; }
+  .fatal { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(255,255,255,.94); color:#b91c1c; font-weight:700; padding:16px; text-align:center; border-top:1px solid #fecaca; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <strong>Mozart — Forms (form-js)</strong>
+  <span class="mode" id="modeLabel">Modo: Visual</span>
+
+  <button class="btn" id="btnVisual">Edição Visual</button>
+  <button class="btn" id="btnCode">Código (JSON)</button>
+
+  <div class="spacer"></div>
+
+  <button class="btn" id="btnNew">Novo</button>
+  <input type="file" id="fileOpen" accept=".json,application/json">
+  <button class="btn" id="btnOpen">Abrir JSON</button>
+  <button class="btn" id="btnSaveJSON">Baixar JSON</button>
+  <button class="btn" id="btnRender" title="Renderiza no preview">Preview</button>
+  <button class="btn" id="btnCopyJSON">Copiar JSON</button>
+  <button class="btn" id="btnCopyHTML">Copiar HTML</button>
+  <button class="btn primary" id="btnSaveHTML">Baixar HTML</button>
+</div>
+
+<div class="wrap">
+  <!-- Editor (visual OU código) -->
+  <div class="col" id="editorCol">
+    <div id="editorHost"></div>
+    <div class="fatal" id="fatalEditorErr">Falha ao carregar o Editor (rede/CDN?). Veja o console (F12).</div>
+
+    <div id="codeHost" style="display:none;">
+      <textarea id="schemaArea" spellcheck="false" placeholder='{"type":"default","components":[...]}'></textarea>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="col" id="previewCol">
+    <div id="previewHead">
+      <div class="rowline">
+        <label style="font-size:12px; color:#6b7280;">Título</label>
+        <input type="text" id="formTitle" value="Formulário" />
+      </div>
+      <div class="spacer"></div>
+      <button class="btn" id="btnClearData" title="Limpa dados do preview">Limpar dados</button>
+    </div>
+    <div id="previewBody">
+      <div id="preview"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  /* JS via esm.sh (resolve dependências automaticamente) */
+  import { Form }       from 'https://esm.sh/@bpmn-io/form-js-viewer@1.17.0';
+  import { FormEditor } from 'https://esm.sh/@bpmn-io/form-js-editor@1.17.0';
+
+  const $ = (s, c=document)=>c.querySelector(s);
+
+  // ===== Schema base =====
+  const DEFAULT_SCHEMA = {
+    schemaVersion: 1,
+    type: "default",
+    components: [
+      { type: "textfield", key: "nome",   label: "Nome",  validate: { required: true } },
+      { type: "textfield", key: "email",  label: "E-mail", properties: { inputType: "email", placeholder: "voce@exemplo.com" }, validate: { required: true } },
+      { type: "select",    key: "plano",  label: "Plano",  values: [
+        { label: "Básico", value: "basic" },
+        { label: "Pro",    value: "pro" },
+        { label: "Enterprise", value: "enterprise" }
+      ]},
+      { type: "checkbox",  key: "aceite", label: "Aceito os termos", validate: { required: true } }
+    ],
+    data: {}
+  };
+
+  let currentSchema = structuredClone(DEFAULT_SCHEMA);
+  let currentData   = {};
+  let currentMode   = 'visual';
+
+  const editor = new FormEditor({ container: $('#editorHost') });
+  const viewer = new Form({ container: $('#preview') });
+
+  async function getSchemaFromEditor(){ const { schema } = await editor.save(); return schema; }
+
+  async function renderPreview(schema, data){
+    const title = (document.getElementById('formTitle').value || 'Formulário');
+
+    await viewer.importSchema(schema);
+
+    if (typeof viewer.importData === 'function') {
+      await viewer.importData(data || {});
+    } else if (typeof viewer.setData === 'function') {
+      viewer.setData(data || {});
+    }
+
+    const host = document.getElementById('preview');
+    let t = host.querySelector('.mozart-title');
+    if (!t){ t = document.createElement('div'); t.className='mozart-title'; t.style.cssText='font-weight:600;margin:0 0 8px 0'; host.prepend(t); }
+    t.textContent = title;
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m])); }
+  const saveAs = (blob, filename) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 700); };
+
+  function safeCopy(text) {
+    return navigator.clipboard?.writeText(text).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } finally { ta.remove(); }
+    });
+  }
+
+  // ===== Boot =====
+  try {
+    await editor.importSchema(currentSchema);
+    await viewer.importSchema(currentSchema);
+
+    if (typeof viewer.importData === 'function') {
+      await viewer.importData(currentData);
+    } else if (typeof viewer.setData === 'function') {
+      viewer.setData(currentData);
+    }
+
+    document.getElementById('fatalEditorErr').style.display = 'none';
+  } catch (e) {
+    console.error('[form-js] erro:', e);
+    alert('Falha ao carregar form-js (rede/CDN). Veja o console (F12).');
+    document.getElementById('fatalEditorErr').style.display = 'flex';
+  }
+
+  // Preview submit
+  viewer.on('submit', (ev) => {
+    currentData = ev.data || {};
+    alert('Dados enviados (preview):\n\n' + JSON.stringify(currentData, null, 2));
+  });
+
+  // ===== Alterna modos =====
+  document.getElementById('btnVisual').onclick = async ()=>{
+    if (currentMode==='visual') return;
+    try {
+      currentSchema = JSON.parse($('#schemaArea').value || '{}');
+      await editor.importSchema(currentSchema);
+      await renderPreview(currentSchema, currentData);
+      $('#editorHost').style.display = '';
+      $('#codeHost').style.display   = 'none';
+      currentMode = 'visual'; $('#modeLabel').textContent = 'Modo: Visual';
+    } catch { alert('JSON inválido.'); }
+  };
+
+  document.getElementById('btnCode').onclick = async ()=>{
+    currentSchema = await getSchemaFromEditor();
+    document.getElementById('schemaArea').value = JSON.stringify(currentSchema, null, 2);
+    $('#editorHost').style.display = 'none';
+    $('#codeHost').style.display   = '';
+    currentMode = 'code'; $('#modeLabel').textContent = 'Modo: Código (JSON)';
+  };
+
+  // ===== Toolbar =====
+  document.getElementById('btnNew').onclick = async ()=>{
+    currentSchema = structuredClone(DEFAULT_SCHEMA);
+    currentData = {};
+    if (currentMode==='visual') await editor.importSchema(currentSchema);
+    else document.getElementById('schemaArea').value = JSON.stringify(currentSchema, null, 2);
+    await renderPreview(currentSchema, currentData);
+  };
+
+  document.getElementById('btnOpen').onclick = ()=> document.getElementById('fileOpen').click();
+
+  document.getElementById('fileOpen').addEventListener('change', async (ev)=>{
+    const f = ev.target.files?.[0]; if (!f) return;
+    try{
+      const js = JSON.parse(await f.text());
+      currentSchema = js;
+      if (currentMode==='visual') await editor.importSchema(currentSchema);
+      else document.getElementById('schemaArea').value = JSON.stringify(currentSchema, null, 2);
+      await renderPreview(currentSchema, currentData);
+    } catch { alert('Arquivo JSON inválido.'); }
+    ev.target.value = '';
+  });
+
+  document.getElementById('btnSaveJSON').onclick = async ()=>{
+    if (currentMode==='visual') currentSchema = await getSchemaFromEditor();
+    else { try { currentSchema = JSON.parse(document.getElementById('schemaArea').value||'{}'); } catch { return alert('JSON inválido.'); } }
+    const name = (currentSchema.title || 'form') + '.form.json';
+    saveAs(new Blob([JSON.stringify(currentSchema, null, 2)], { type:'application/json' }), name);
+  };
+
+  document.getElementById('btnRender').onclick = async ()=>{
+    if (currentMode==='visual') currentSchema = await getSchemaFromEditor();
+    else { try { currentSchema = JSON.parse(document.getElementById('schemaArea').value||'{}'); } catch { return alert('JSON inválido.'); } }
+    await renderPreview(currentSchema, currentData);
+  };
+
+  document.getElementById('btnCopyJSON').onclick = async ()=>{
+    const txt = currentMode==='visual'
+      ? JSON.stringify(await getSchemaFromEditor(), null, 2)
+      : document.getElementById('schemaArea').value;
+    await safeCopy(txt);
+  };
+
+  document.getElementById('btnCopyHTML').onclick = async ()=>{
+    const schema = currentMode==='visual'
+      ? await getSchemaFromEditor()
+      : JSON.parse(document.getElementById('schemaArea').value||'{}');
+
+    const cssBase = './vendor/form-js@1.17.0/dist/assets'; // relativo à página
+    const title = escapeHtml(document.getElementById('formTitle').value || 'Formulário');
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+<link rel="stylesheet" href="${cssBase}/form-js.css"></head>
+<body style="margin:16px;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial">
+<h1 style="font-size:18px;margin:0 0 12px 0">${title}</h1>
+<div id="preview"></div>
+<script type="module">
+  import { Form } from 'https://esm.sh/@bpmn-io/form-js-viewer@1.17.0';
+  const schema = ${JSON.stringify(schema, null, 2)};
+  const viewer = new Form({ container: document.getElementById('preview') });
+  await viewer.importSchema(schema);
+  if (typeof viewer.importData==='function') await viewer.importData({});
+  else if (typeof viewer.setData==='function') viewer.setData({});
+<\/script></body></html>`;
+
+    await safeCopy(html);
+  };
+
+  document.getElementById('btnSaveHTML').onclick = async ()=>{
+    const schema = currentMode==='visual'
+      ? await getSchemaFromEditor()
+      : JSON.parse(document.getElementById('schemaArea').value||'{}');
+
+    const cssBase = './vendor/form-js@1.17.0/dist/assets';
+    const title = escapeHtml(document.getElementById('formTitle').value || 'Formulário');
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+<link rel="stylesheet" href="${cssBase}/form-js.css"></head>
+<body style="margin:16px;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial">
+<h1 style="font-size:18px;margin:0 0 12px 0">${title}</h1>
+<div id="preview"></div>
+<script type="module">
+  import { Form } from 'https://esm.sh/@bpmn-io/form-js-viewer@1.17.0';
+  const schema = ${JSON.stringify(schema, null, 2)};
+  const viewer = new Form({ container: document.getElementById('preview') });
+  await viewer.importSchema(schema);
+  if (typeof viewer.importData==='function') await viewer.importData({});
+  else if (typeof viewer.setData==='function') viewer.setData({});
+<\/script></body></html>`;
+
+    const name = (schema.title || 'form') + '.html';
+    saveAs(new Blob([html], { type:'text/html' }), name);
+  };
+
+  document.getElementById('btnClearData').onclick = async ()=>{
+    currentData = {};
+    if (typeof viewer.importData==='function') await viewer.importData({});
+    else if (typeof viewer.setData==='function') viewer.setData({});
+  };
+</script>
+</body>
+</html>

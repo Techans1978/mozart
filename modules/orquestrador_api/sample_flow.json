@@ -1,0 +1,66 @@
+{
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "position": {
+        "x": 80,
+        "y": 100
+      },
+      "config": {}
+    },
+    {
+      "id": "http1",
+      "type": "http",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "config": {
+        "connectorVersionId": 1,
+        "outputVar": "resp"
+      }
+    },
+    {
+      "id": "map1",
+      "type": "mapper",
+      "position": {
+        "x": 520,
+        "y": 100
+      },
+      "config": {
+        "sourceVar": "resp",
+        "targetVar": "out",
+        "mapping": {
+          "status": "$.status"
+        }
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "position": {
+        "x": 760,
+        "y": 100
+      },
+      "config": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "start",
+      "target": "http1"
+    },
+    {
+      "id": "e2",
+      "source": "http1",
+      "target": "map1"
+    },
+    {
+      "id": "e3",
+      "source": "map1",
+      "target": "end"
+    }
+  ]
+}

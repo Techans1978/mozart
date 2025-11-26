@@ -1,0 +1,8 @@
+Cron de relatórios:
+
+Agende no seu servidor (ex.: a cada 10 min) uma chamada para:
+php /caminho/para/public/api/hd/cron/report_email.php
+
+
+ou via HTTP com token:
+https://SEU_DOMINIO/api/hd/cron/report_email.php?token=SEU_TOKEN

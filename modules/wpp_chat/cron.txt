@@ -1,0 +1,1 @@
+* * * * * php /home/SEU_USUARIO/public_html/public/modules/wpp_chat/process_queue.php >/dev/null 2>&1

@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cadastro • Fabricante / Distribuidor</title>
+  <!-- MetisMenu CSS -->
+  <link rel="stylesheet" href="includes/css/style_gestao_ativos.css?v=1.0.0">
+</head>
+<body>
+  <div class="bpm">
+  <div class="container">
+    <header>
+      <h1>Cadastro — Fabricante / Distribuidor</h1>
+      <div class="chips">
+        <span class="chip">Módulo: Ativos</span>
+        <span class="chip">Cadastro visual (HTML)</span>
+      </div>
+    </header>
+
+    <!-- TIPO -->
+    <div class="card">
+      <p class="subtitle">Tipo de cadastro</p>
+      <div class="toggle" role="tablist" aria-label="Escolha o tipo de cadastro">
+        <input type="radio" id="t-fab" name="tipo" value="fabricante" checked>
+        <label for="t-fab">Fabricante</label>
+        <input type="radio" id="t-dist" name="tipo" value="distribuidor">
+        <label for="t-dist">Distribuidor</label>
+      </div>
+      <p class="hint" style="margin-top:8px">Você pode cadastrar como <b>Fabricante</b> (com marca/logo) ou <b>Distribuidor</b> (fornecedor da marca).</p>
+    </div>
+
+    <!-- ===== FABRICANTE ===== -->
+    <form class="card" id="form-fabricante" autocomplete="off" novalidate>
+      <p class="subtitle">Dados do Fabricante</p>
+      <div class="grid cols-2">
+        <div>
+          <label>Nome da marca *</label>
+          <input type="text" placeholder="Ex.: Dell, HP, Toledo" />
+        </div>
+        <div>
+          <label>Site do fabricante</label>
+          <input type="url" placeholder="https://www.exemplo.com" />
+        </div>
+      </div>
+
+      <div class="grid cols-2">
+        <div class="stack">
+          <label>Logo / Foto da marca</label>
+          <div class="logo-drop" id="drop-logo">
+            Arraste a imagem aqui ou <button type="button" class="btn small">escolha um arquivo</button>
+            <input type="file" id="logo-input" accept="image/*" />
+            <div class="logo-preview" id="logo-preview" style="display:none">
+              <img alt="Logo preview" id="logo-img">
+              <span class="hint">Pré-visualização da marca</span>
+            </div>
+          </div>
+          <span class="note">Formatos: PNG/JPG/SVG • Sugerido: fundo transparente</span>
+        </div>
+        <div>
+          <label>Observações</label>
+          <textarea placeholder="Obs gerais, linhas de produto, particularidades de garantia, etc."></textarea>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="subtitle">Informações de Suporte do Fabricante</p>
+      <div class="grid cols-3">
+        <div>
+          <label>Link da página de suporte</label>
+          <input type="url" placeholder="https://www.exemplo.com/suporte" />
+        </div>
+        <div>
+          <label>Telefone</label>
+          <input type="tel" placeholder="0800 000 000" />
+        </div>
+        <div>
+          <label>WhatsApp</label>
+          <input type="tel" placeholder="(11) 90000-0000" />
+        </div>
+      </div>
+      <div class="grid cols-2">
+        <div>
+          <label>Outros canais (URL)</label>
+          <input type="url" placeholder="Central de drivers, portal de RMA, etc." />
+        </div>
+        <div>
+          <label>E-mail do suporte</label>
+          <input type="email" placeholder="suporte@fabricante.com" />
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="subtitle">Distribuidores / Onde compramos essa marca</p>
+      <div class="section-muted">
+        <div id="dist-list" class="stack"></div>
+        <button type="button" class="btn small" id="add-dist">+ Adicionar distribuidor</button>
+        <p class="hint">Você pode cadastrar mais de um distribuidor para a mesma marca.</p>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="subtitle">Equipamentos dessa marca (visual)</p>
+      <p class="hint">Somente visual para referência. No sistema real, os vínculos virão do cadastro de modelos/ativos.</p>
+      <div class="grid cols-2">
+        <div>
+          <label>Buscar equipamento/modelo</label>
+          <input type="text" placeholder="Ex.: Latitude 5440, Balança Prix 5" />
+        </div>
+        <div class="row" style="align-items:flex-end">
+          <span class="pill">0 itens encontrados</span>
+        </div>
+      </div>
+      <table class="table" aria-label="Lista de equipamentos da marca">
+        <thead><tr><th>Modelo</th><th>Categoria</th><th>Status</th></tr></thead>
+        <tbody><tr><td colspan="3" class="hint">Sem itens por enquanto — mock visual.</td></tr></tbody>
+      </table>
+
+      <div class="foot-actions">
+        <button class="btn ghost" type="button">Cancelar</button>
+        <button class="btn primary" type="button">Salvar Fabricante (visual)</button>
+      </div>
+    </form>
+
+    <!-- ===== DISTRIBUIDOR ===== -->
+    <form class="card" id="form-distribuidor" style="display:none" autocomplete="off" novalidate>
+      <p class="subtitle">Dados do Distribuidor</p>
+      <div class="grid cols-2">
+        <div>
+          <label>Razão social *</label>
+          <input type="text" placeholder="Nome como no CNPJ" />
+        </div>
+        <div>
+          <label>Nome fantasia</label>
+          <input type="text" placeholder="Opcional" />
+        </div>
+      </div>
+      <div class="grid cols-3">
+        <div>
+          <label>CNPJ *</label>
+          <input type="text" placeholder="00.000.000/0000-00" />
+        </div>
+        <div>
+          <label>Inscrição Estadual</label>
+          <input type="text" placeholder="Isento / nº" />
+        </div>
+        <div>
+          <label>Inscrição Municipal</label>
+          <input type="text" placeholder="Opcional" />
+        </div>
+      </div>
+      <div class="grid cols-3">
+        <div>
+          <label>Porte</label>
+          <select>
+            <option value="">—</option>
+            <option>MEI</option>
+            <option>Microempresa</option>
+            <option>Pequeno Porte</option>
+            <option>Médio/Grande</option>
+          </select>
+        </div>
+        <div>
+          <label>Matriz / Filial</label>
+          <select><option>Matriz</option><option>Filial</option></select>
+        </div>
+        <div>
+          <label>Data de abertura</label>
+          <input type="date" />
+        </div>
+      </div>
+      <div class="grid cols-2">
+        <div>
+          <label>Natureza jurídica</label>
+          <input type="text" placeholder="Ex.: Sociedade Empresária Limitada" />
+        </div>
+        <div>
+          <label>CNAE principal</label>
+          <input type="text" placeholder="Código e descrição" />
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="subtitle">Endereço (CNPJ)</p>
+      <div class="grid cols-4">
+        <div>
+          <label>CEP</label>
+          <input type="text" placeholder="00000-000" />
+        </div>
+        <div class="cols-span-3">
+          <label>Logradouro</label>
+          <input type="text" placeholder="Rua/Avenida" />
+        </div>
+      </div>
+      <div class="grid cols-4">
+        <div>
+          <label>Número</label>
+          <input type="text" placeholder="S/N" />
+        </div>
+        <div>
+          <label>Complemento</label>
+          <input type="text" placeholder="Sala, bloco..." />
+        </div>
+        <div>
+          <label>Bairro</label>
+          <input type="text" />
+        </div>
+        <div>
+          <label>Município</label>
+          <input type="text" />
+        </div>
+      </div>
+      <div class="grid cols-3">
+        <div>
+          <label>UF</label>
+          <input type="text" placeholder="SP, RJ..." />
+        </div>
+        <div>
+          <label>E-mail geral</label>
+          <input type="email" placeholder="contato@distribuidor.com.br" />
+        </div>
+        <div>
+          <label>Telefone geral</label>
+          <input type="tel" placeholder="(11) 4000-0000" />
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="subtitle">Contatos (múltiplos)</p>
+      <div id="contacts" class="grid" style="gap:14px"></div>
+      <button type="button" class="btn small" id="add-contact">+ Adicionar contato</button>
+      <p class="hint">Sugestões: Comercial, Financeiro, Suporte, Logística etc.</p>
+
+      <div class="divider"></div>
+
+      <p class="subtitle">Marcas atendidas por este distribuidor</p>
+      <div class="stack">
+        <div class="row">
+          <input type="text" placeholder="Digite o nome da marca e clique em Adicionar" style="flex:1" id="marca-input">
+          <button type="button" class="btn small" id="add-marca">+ Adicionar marca</button>
+        </div>
+        <div id="marcas-list" class="row" style="gap:8px; flex-wrap:wrap;"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="subtitle">Arquivos</p>
+      <div class="grid cols-3">
+        <div class="stack">
+          <label>Contrato (PDF)</label>
+          <div class="file-zone">Arraste aqui ou <button type="button" class="btn small" onclick="document.getElementById('f-contrato').click()">escolha</button>
+            <input id="f-contrato" type="file" accept="application/pdf" /></div>
+          <div id="list-contrato" class="hint">Nenhum arquivo.</div>
+        </div>
+        <div class="stack">
+          <label>Cartão CNPJ (PDF/Imagem)</label>
+          <div class="file-zone">Arraste aqui ou <button type="button" class="btn small" onclick="document.getElementById('f-cnpj').click()">escolha</button>
+            <input id="f-cnpj" type="file" accept="application/pdf,image/*" /></div>
+          <div id="list-cnpj" class="hint">Nenhum arquivo.</div>
+        </div>
+        <div class="stack">
+          <label>Outros</label>
+          <div class="file-zone">Arraste aqui ou <button type="button" class="btn small" onclick="document.getElementById('f-outros').click()">escolha</button>
+            <input id="f-outros" type="file" multiple /></div>
+          <div id="list-outros" class="hint">Nenhum arquivo.</div>
+        </div>
+      </div>
+
+      <div class="foot-actions">
+        <button class="btn ghost" type="button">Cancelar</button>
+        <button class="btn primary" type="button">Salvar Distribuidor (visual)</button>
+      </div>
+    </form>
+
+    <p class="hint" style="margin-top:10px">Mock visual. Depois mapeamos as tabelas e convertemos para PHP.</p>
+  </div>
+  </div>
+
+  <script>
+    // Alternar forms
+    const fabRadio = document.getElementById('t-fab');
+    const distRadio = document.getElementById('t-dist');
+    const formFab = document.getElementById('form-fabricante');
+    const formDist = document.getElementById('form-distribuidor');
+    function toggleForms(){ const isFab = fabRadio.checked; formFab.style.display = isFab ? '' : 'none'; formDist.style.display = isFab ? 'none' : ''; }
+    fabRadio.addEventListener('change', toggleForms); distRadio.addEventListener('change', toggleForms);
+
+    // Preview logo (fabricante)
+    const drop = document.getElementById('drop-logo');
+    const inputFile = document.getElementById('logo-input');
+    const preview = document.getElementById('logo-preview');
+    const img = document.getElementById('logo-img');
+    drop.querySelector('button').addEventListener('click', () => inputFile.click());
+    inputFile.addEventListener('change', ev => {
+      const file = ev.target.files?.[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = e => { img.src = e.target.result; preview.style.display = 'flex'; };
+      reader.readAsDataURL(file);
+    });
+
+    // Distribuidores (lista no fabricante)
+    const distList = document.getElementById('dist-list');
+    const addDistBtn = document.getElementById('add-dist');
+    function distRowTpl(){
+      const wrap = document.createElement('div');
+      wrap.className = 'grid cols-3'; wrap.style.alignItems = 'end';
+      wrap.innerHTML = `
+        <div><label>Distribuidor</label><input type="text" placeholder="Nome do distribuidor" /></div>
+        <div><label>Contato (tel/whats/email)</label><input type="text" placeholder="(11) 9.... / comercial@..." /></div>
+        <div class="row"><button type="button" class="btn small" aria-label="Remover">Remover</button></div>`;
+      wrap.querySelector('button').addEventListener('click', ()=> wrap.remove());
+      return wrap;
+    }
+    addDistBtn.addEventListener('click', ()=> distList.appendChild(distRowTpl()));
+    distList.appendChild(distRowTpl());
+
+    // Contatos dinâmicos (no distribuidor)
+    const contactsWrap = document.getElementById('contacts');
+    const addBtn = document.getElementById('add-contact');
+    function contactTpl(){
+      const el = document.createElement('div');
+      el.className = 'grid cols-3';
+      el.innerHTML = `
+        <div><label>Nome do contato</label><input type="text" placeholder="Fulano de Tal" /></div>
+        <div><label>Departamento / Função</label><input type="text" placeholder="Comercial / Financeiro / Suporte" /></div>
+        <div class="row"><button type="button" class="btn small danger" aria-label="Remover">Remover</button></div>
+        <div><label>E-mail</label><input type="email" placeholder="contato@empresa.com" /></div>
+        <div><label>Telefone</label><input type="tel" placeholder="(11) 4000-0000" /></div>
+        <div><label>WhatsApp</label><input type="tel" placeholder="(11) 90000-0000" /></div>`;
+      el.querySelector('button').addEventListener('click', ()=> el.remove());
+      return el;
+    }
+    addBtn.addEventListener('click', ()=> contactsWrap.appendChild(contactTpl()));
+    contactsWrap.appendChild(contactTpl()); // começa com um
+
+    // Tags de marcas (no distribuidor)
+    const marcaInput = document.getElementById('marca-input');
+    const marcasList = document.getElementById('marcas-list');
+    const addMarcaBtn = document.getElementById('add-marca');
+    function addMarca(tag){
+      if(!tag) return;
+      const pill = document.createElement('span');
+      pill.className = 'chip';
+      pill.textContent = tag;
+      pill.style.cursor = 'pointer';
+      pill.title = 'Clique para remover';
+      pill.addEventListener('click', ()=> pill.remove());
+      marcasList.appendChild(pill);
+      marcaInput.value = '';
+    }
+    addMarcaBtn.addEventListener('click', ()=> addMarca(marcaInput.value.trim()));
+    marcaInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); addMarca(marcaInput.value.trim()); }});
+
+    // Lista nomes de arquivos
+    function bindFileList(inputId, listId){
+      const input = document.getElementById(inputId);
+      const list = document.getElementById(listId);
+      input.addEventListener('change', ()=>{
+        if(!input.files.length){ list.textContent = 'Nenhum arquivo.'; return; }
+        list.innerHTML = '';
+        [...input.files].forEach(f=>{
+          const p = document.createElement('div'); p.textContent = '• ' + f.name; list.appendChild(p);
+        });
+      });
+    }
+    bindFileList('f-contrato','list-contrato');
+    bindFileList('f-cnpj','list-cnpj');
+    bindFileList('f-outros','list-outros');
+  </script>
+</body>
+</html>

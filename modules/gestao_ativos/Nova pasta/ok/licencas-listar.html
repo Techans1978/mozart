@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <title>Licenças — Listar</title>
+  
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="includes/css/style_gestao_ativos.css?v=1.0.0">
+
+</head>
+<body class="bpm">
+  <div class="container">
+    
+<header class="toolbar">
+  <h1>Licenças — Listar</h1>
+  <div class="actions">
+    <a class="btn" href="licencas-form.html">Novo</a>
+    <button class="btn">Exportar CSV</button>
+    
+  </div>
+</header>
+
+<form class="card" onsubmit="return false;">
+  <p class="subtitle">Filtros</p>
+  
+  <div class="grid cols-4">
+    <div><label>Busca</label><input type="text" placeholder="produto, fornecedor"/></div>
+    <div><label>Tipo</label><select><option>—</option><option>Software</option><option>Domínio</option><option>Clube</option><option>SaaS</option></select></div>
+    <div><label>Periodicidade</label><select><option>—</option><option>Mensal</option><option>Anual</option><option>Bianual</option></select></div>
+    <div><label>Status</label><select><option>—</option><option>Ativa</option><option>Pendente</option><option>Expirada</option></select></div>
+  </div>
+  
+  <div class="row" style="justify-content:flex-end">
+    <button class="btn">Limpar</button>
+    <button class="btn primary">Aplicar</button>
+  </div>
+</form>
+
+<div id="bulkbar" class="card" style="display:none">
+  <div class="row" style="justify-content:space-between; align-items:center">
+    <div><strong id="bulk-count">0</strong> selecionados</div>
+    <div class="row">
+      <button class="btn small">Inativar</button>
+      <button class="btn small">Excluir</button>
+      <button class="btn small">Exportar</button>
+      <button class="btn small danger">Limpar seleção</button>
+    </div>
+  </div>
+</div>
+
+<section id="list" class="grid cols-2">
+  
+<article class="card">
+  <div class="row" style="justify-content:space-between;align-items:flex-start">
+    <div>
+      <div style="font-weight:700">Microsoft 365 E3</div>
+      <div class="hint">Software • Microsoft</div>
+    </div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><span class="pill">Ativa</span> <span class="pill">vence em 25d</span></div>
+  </div>
+  <div class="divider"></div>
+  <div class="grid cols-3"><div><label>Periodicidade</label><div>Mensal</div></div><div><label>Valor/ciclo</label><div>R$ 1.500</div></div><div><label>Alocações</label><div>45</div></div></div>
+  <div class="divider"></div>
+  <div class="row" style="justify-content:flex-end;gap:8px"><a class="btn small" href="#">l</a><a class="btn small" href="#">i</a><a class="btn small" href="#">c</a><a class="btn small" href="#">e</a><a class="btn small" href="#">n</a><a class="btn small" href="#">c</a><a class="btn small" href="#">a</a><a class="btn small" href="#">s</a><a class="btn small" href="#">-</a><a class="btn small" href="#">f</a><a class="btn small" href="#">o</a><a class="btn small" href="#">r</a><a class="btn small" href="#">m</a><a class="btn small" href="#">.</a><a class="btn small" href="#">h</a><a class="btn small" href="#">t</a><a class="btn small" href="#">m</a><a class="btn small" href="#">l</a></div>
+</article>
+
+<article class="card">
+  <div class="row" style="justify-content:space-between;align-items:flex-start">
+    <div>
+      <div style="font-weight:700">dominio.com.br</div>
+      <div class="hint">Domínio • Registro.br</div>
+    </div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><span class="pill">Ativa</span> <span class="pill">vence em 300d</span></div>
+  </div>
+  <div class="divider"></div>
+  <div class="grid cols-3"><div><label>Periodicidade</label><div>Anual</div></div><div><label>Valor/ciclo</label><div>R$ 40,00</div></div><div><label>DNS</label><div>Cloudflare</div></div></div>
+  <div class="divider"></div>
+  <div class="row" style="justify-content:flex-end;gap:8px"><a class="btn small" href="#">l</a><a class="btn small" href="#">i</a><a class="btn small" href="#">c</a><a class="btn small" href="#">e</a><a class="btn small" href="#">n</a><a class="btn small" href="#">c</a><a class="btn small" href="#">a</a><a class="btn small" href="#">s</a><a class="btn small" href="#">-</a><a class="btn small" href="#">f</a><a class="btn small" href="#">o</a><a class="btn small" href="#">r</a><a class="btn small" href="#">m</a><a class="btn small" href="#">.</a><a class="btn small" href="#">h</a><a class="btn small" href="#">t</a><a class="btn small" href="#">m</a><a class="btn small" href="#">l</a></div>
+</article>
+
+</section>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between; align-items:center">
+    <div class="hint">1–20 de 120</div>
+    <div class="row">
+      <label>Por página</label>
+      <select><option>20</option><option>50</option><option>100</option></select>
+      <button class="btn">Anterior</button>
+      <button class="btn">Próxima</button>
+    </div>
+  </div>
+</div>
+
+  </div>
+  
+</body>
+</html>

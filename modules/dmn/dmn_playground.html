@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mozart — DMN (visual)</title>
+
+<!-- CSS do dmn-js -->
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@16.2.0/dist/assets/diagram-js.css">
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@16.2.0/dist/assets/dmn-js.css">
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@16.2.0/dist/assets/dmn-font/css/dmn.css">
+<!-- ADIÇÕES importantes para a UI completa da tabela/expressão -->
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@16.2.0/dist/assets/dmn-js-decision-table.css">
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@16.2.0/dist/assets/dmn-js-literal-expression.css">
+
+<style>
+  :root { --gap:12px; }
+  *{ box-sizing:border-box; }
+  html, body { height: 100%; }
+  body{
+    margin:0; font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    background:#f6f7f9; color:#111;
+  }
+
+  .toolbar{
+    position:sticky; top:0; z-index:5; display:flex; gap:8px; align-items:center;
+    padding:10px 12px; background:#fff; border-bottom:1px solid #e5e7eb;
+  }
+  .toolbar .spacer{ flex:1 }
+  .btn{
+    border:1px solid #d1d5db; background:#fff; padding:8px 12px; border-radius:10px;
+    font-weight:600; cursor:pointer;
+  }
+  .btn:hover{ background:#f3f4f6;}
+  .btn.primary{ background:#111827; color:#fff; border-color:#111827;}
+
+  /* área do canvas preenche a viewport */
+  #canvasWrap{ height: calc(100vh - 58px); padding: var(--gap); display:flex; min-height:0; }
+  #dmnCanvas{
+    height: 100%; width: 100%;
+    background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+    overflow: visible;
+    flex:1 1 auto; min-height:0;
+  }
+
+  /* garantir 100% para os contêineres internos do dmn-js */
+  #dmnCanvas .dmn-js-parent,
+  #dmnCanvas .dmn-js-container,
+  #dmnCanvas .djs-container{
+    height: 100% !important;
+    width: 100% !important;
+  }
+
+  /* todas as views ocupam 100% */
+  .dmn-drd-container,
+  .dmn-decision-table-container,
+  .dmn-literal-expression-container { height: 100%; }
+
+  input[type="file"]{ display:none; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <strong>Mozart — DMN</strong>
+
+  <div class="spacer"></div>
+
+  <button class="btn" id="btnNew">Novo</button>
+  <button class="btn" id="btnCreateDecision" title="Cria um Decision com tabela vazia">Nova decisão</button>
+
+  <button class="btn" id="btnOpenTable">Abrir tabela</button>
+  <button class="btn" id="btnViewDRD">View DRD</button>
+
+  <input type="file" id="fileOpen" accept=".dmn,.xml">
+  <button class="btn" id="btnOpen">Abrir XML</button>
+  <button class="btn" id="btnSaveXML">Baixar XML</button>
+  <button class="btn" id="btnCopyXML">Copiar XML</button>
+
+  <button class="btn" id="zoomIn">Zoom +</button>
+  <button class="btn" id="zoomOut">Zoom −</button>
+  <button class="btn" id="zoomFit">Ajustar</button>
+
+  <button class="btn primary" id="btnSaveHTML">Baixar HTML</button>
+</div>
+
+<div id="canvasWrap"><div id="dmnCanvas"></div></div>
+
+<!-- UMD dmn-js -->
+<script src="https://unpkg.com/dmn-js@16.2.0/dist/dmn-modeler.development.js"></script>
+
+<script>
+const $ = (s, c=document)=>c.querySelector(s);
+
+// DMN vazio (DRD sem shapes)
+const EMPTY_XML =
+`<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:di="http://www.omg.org/spec/DMN/20191111/DI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_${Date.now()}"
+             name="Mozart-DMN"
+             namespace="http://mozart.local/dmn">
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DRD_1"/>
+  </dmndi:DMNDI>
+</definitions>`;
+
+let modeler = null;
+let currentName = 'diagram.dmn';
+
+const saveAs = (blob, filename) => { const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 700); };
+const readFile = (file)=> new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(String(fr.result)); fr.onerror=rej; fr.readAsText(file); });
+function safeCopy(text){ return (navigator.clipboard?.writeText(text).catch(()=>{ const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}finally{ta.remove();} })) }
+
+async function zoomFit() {
+  try {
+    const av = modeler.getActiveViewer();
+    av.get('canvas').zoom('fit-viewport', 'auto');
+  } catch {}
+}
+function zoomScale(factor) {
+  try {
+    const av = modeler.getActiveViewer();
+    const canvas = av.get('canvas');
+    canvas.zoom(canvas.zoom() * factor);
+  } catch {}
+}
+
+/* ===== helpers de views ===== */
+async function getViews(){ return await modeler.getViews(); }
+
+async function openViewBy(pred){
+  const views = await getViews();
+  const v = views.find(pred) || views[0];
+  if (v) await modeler.open(v);
+  return v;
+}
+
+async function openDRD(){
+  const v = await openViewBy(v => v.type === 'drd');
+  await zoomFit();
+  return v;
+}
+
+async function openDecisionTableFor(decisionIdOrEl){
+  const id = typeof decisionIdOrEl === 'string' ? decisionIdOrEl : decisionIdOrEl?.id;
+  return await openViewBy(v => v.type === 'decisionTable' && v.element?.id === id);
+}
+
+/* ===== boot ===== */
+(async function boot(){
+  modeler = new window.DmnJS({ container:'#dmnCanvas' });
+  await modeler.importXML(EMPTY_XML);
+  await openDRD();
+
+  // refit quando a janela mudar de tamanho (debounce)
+  let t=null;
+  window.addEventListener('resize', ()=>{ clearTimeout(t); t=setTimeout(zoomFit, 120); });
+
+  // Duplo-clique em Decision no DRD => abre a tabela
+  try {
+    const av = modeler.getActiveViewer();
+    const eventBus = av.get('eventBus');
+    eventBus.on('element.dblclick', async (e) => {
+      const el = e?.element;
+      if (el?.type === 'dmn:Decision') {
+        await openDecisionTableFor(el.businessObject?.id || el.id);
+      }
+    });
+  } catch (err) {
+    console.warn('dblclick hook:', err);
+  }
+})();
+
+/* ===== ações toolbar ===== */
+document.getElementById('btnNew').onclick = async ()=>{
+  await modeler.importXML(EMPTY_XML);
+  currentName = 'diagram.dmn';
+  await openDRD();
+};
+
+document.getElementById('btnCreateDecision').onclick = async ()=>{
+  // cria Decision no DRD + decisionTable vazia e abre a tabela
+  const moddle  = modeler.get('moddle');
+  const viewer  = modeler.getActiveViewer();
+  const modeling = viewer.get('modeling');
+  const elementFactory = viewer.get('elementFactory');
+  const canvas = viewer.get('canvas');
+
+  const decisionId = 'Decision_' + Date.now().toString(36);
+  const tableId    = 'DecisionTable_' + Date.now().toString(36);
+
+  const decisionBo = moddle.create('dmn:Decision', { id: decisionId, name: 'Nova decisão' });
+  const dTable     = moddle.create('dmn:DecisionTable', { id: tableId, hitPolicy: 'FIRST' });
+
+  const inputExpr  = moddle.create('dmn:LiteralExpression', { id: 'InputExpr_'+Date.now().toString(36), text: 'valor' });
+  const input      = moddle.create('dmn:Input',  { id:'Input_'+Date.now().toString(36), inputExpression: inputExpr, label:'Entrada' });
+  const output     = moddle.create('dmn:Output', { id:'Output_'+Date.now().toString(36), name:'Resultado', typeRef:'string' });
+  dTable.input  = [ input ];
+  dTable.output = [ output ];
+
+  decisionBo.decisionLogic = dTable;
+
+  const shape = elementFactory.createShape({ type: 'dmn:Decision', businessObject: decisionBo });
+  const root = canvas.getRootElement();
+  modeling.createShape(shape, { x: 300, y: 200 }, root);
+
+  // abrir a decision table recém-criada
+  await openDecisionTableFor(decisionId);
+};
+
+document.getElementById('btnOpenTable').onclick = async ()=>{
+  try{
+    const av = modeler.getActiveViewer();
+    const sel = av.get('selection').get();
+    const el  = sel?.[0];
+    if (!el || el.type !== 'dmn:Decision') {
+      alert('Selecione uma Decision no DRD para abrir a tabela.');
+      return;
+    }
+    await openDecisionTableFor(el.businessObject?.id || el.id);
+  }catch(e){ console.error(e); }
+};
+
+document.getElementById('btnViewDRD').onclick = openDRD;
+
+document.getElementById('btnOpen').onclick = ()=> document.getElementById('fileOpen').click();
+document.getElementById('fileOpen').addEventListener('change', async (ev)=>{
+  const f = ev.target.files?.[0]; if (!f) return;
+  try{
+    currentName = f.name.endsWith('.dmn') || f.name.endsWith('.xml') ? f.name : (f.name + '.dmn');
+    const xml = await readFile(f);
+    await modeler.importXML(xml);
+    await openDRD();
+  }catch(e){ alert('Falha ao importar: ' + (e?.message||e)); }
+  ev.target.value='';
+});
+
+document.getElementById('btnSaveXML').onclick = async ()=>{
+  try{
+    const { xml } = await modeler.saveXML({ format:true });
+    const name = currentName || 'diagram.dmn';
+    saveAs(new Blob([xml], { type:'application/xml' }), name);
+  }catch(e){ alert('Falha ao gerar XML.'); }
+};
+
+document.getElementById('btnCopyXML').onclick = async ()=>{
+  try{
+    const { xml } = await modeler.saveXML({ format:true });
+    await safeCopy(xml);
+  }catch(e){ alert('Não consegui copiar o XML.'); }
+};
+
+document.getElementById('zoomIn').onclick  = ()=> zoomScale(1.2);
+document.getElementById('zoomOut').onclick = ()=> zoomScale(1/1.2);
+document.getElementById('zoomFit').onclick = zoomFit;
+
+document.getElementById('btnSaveHTML').onclick = async ()=>{
+  try{
+    const { xml } = await modeler.saveXML({ format:true });
+    const title = 'DMN Preview';
+    const html =
+`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@16.2.0/dist/assets/diagram-js.css">
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@16.2.0/dist/assets/dmn-js.css">
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@16.2.0/dist/assets/dmn-font/css/dmn.css">
+<style>html,body{height:100%;margin:0}#c{height:100vh}</style>
+</head><body>
+<div id="c"></div>
+<script src="https://unpkg.com/dmn-js@16.2.0/dist/dmn-modeler.development.js"><\/script>
+<script>
+  (async function(){
+    const modeler = new window.DmnJS({ container:'#c' });
+    const xml = ${JSON.stringify(xml)};
+    await modeler.importXML(xml);
+    const views = await modeler.getViews();
+    const drd = views.find(v=>v.type==='drd') || views[0];
+    await modeler.open(drd);
+  })();
+<\/script></body></html>`;
+    const name = (currentName?.replace(/\.(dmn|xml)$/i,'') || 'diagram') + '.html';
+    saveAs(new Blob([html], { type:'text/html' }), name);
+  }catch(e){ alert('Falha ao gerar HTML: '+(e?.message||e)); }
+};
+
+// Drag & drop
+document.body.addEventListener('dragover', e=>e.preventDefault());
+document.body.addEventListener('drop', async e=>{
+  e.preventDefault();
+  const f = e.dataTransfer?.files?.[0];
+  if (f && /\.(dmn|xml)$/i.test(f.name)) {
+    currentName = f.name;
+    const xml = await readFile(f);
+    await modeler.importXML(xml);
+    await openDRD();
+  }
+});
+
+// Atalhos
+window.addEventListener('keydown', (e)=>{
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase()==='s') { e.preventDefault(); document.getElementById('btnSaveXML').click(); }
+  if (mod && e.key.toLowerCase()==='o') { e.preventDefault(); document.getElementById('btnOpen').click(); }
+});
+</script>
+</body>
+</html>

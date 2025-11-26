@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <title>Etiquetas / QR — Emissão</title>
+  
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="includes/css/style_gestao_ativos.css?v=1.0.0">
+
+</head>
+<body class="bpm">
+  <div class="container">
+    
+<header class="toolbar">
+  <h1>Etiquetas / QR — Emissão</h1>
+  <div class="actions"><a class="btn" href="etiquetas-qr-listar.html">Listar</a></div>
+</header>
+
+<form class="card" onsubmit="return false;">
+  <p class="subtitle">Seleção de itens</p>
+  <div class="grid cols-3">
+    <div><label>Por</label><select><option>Ativos</option><option>Modelo</option><option>Categoria</option><option>Lote (range)</option></select></div>
+    <div><label>Filtro</label><input type="text" placeholder="Ex.: NB-0001, NB-0002 / Latitude 5440"/></div>
+    <div><label>Quantidade</label><input type="number" min="1" value="1"/></div>
+  </div>
+  <div class="divider"></div>
+  <p class="subtitle">Layout</p>
+  <div class="grid cols-3">
+    <div><label>Modelo</label><select><option>Padrão 62×29mm</option><option>Pequeno 30×20mm</option><option>Grande 100×50mm</option></select></div>
+    <div><label>Campos</label><input type="text" placeholder="Tag, Serial, Modelo, QR"/></div>
+    <div><label>Logo</label><select><option>Sem logo</option><option>Logo padrão</option></select></div>
+  </div>
+  <div class="row" style="justify-content:flex-end;gap:10px"><button class="btn">Pré-visualizar</button><button class="btn primary">Gerar PDF</button></div>
+</form>
+
+  </div>
+  
+</body>
+</html>

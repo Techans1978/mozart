@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <title>Ativos • Cadastro</title>
+  
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="includes/css/style_gestao_ativos.css?v=1.0.0">
+
+</head>
+<body class="bpm">
+  <div class="container">
+    
+<header class="toolbar">
+  <h1>Ativos — Cadastro</h1>
+  <div class="actions">
+    <a class="btn" href="ativos-listar.html">Listar ativos</a>
+  </div>
+</header>
+
+<form class="card" autocomplete="off" novalidate>
+  <p class="subtitle">Identificação</p>
+  <div class="grid cols-3">
+    <div>
+      <label>Categoria *</label>
+      <select><option>Notebook</option><option>Telefone</option><option>Switch</option></select>
+    </div>
+    <div>
+      <label>Modelo *</label>
+      <select><option>Latitude 5440</option><option>iPhone 12</option><option>Switch 24p</option></select>
+    </div>
+    <div>
+      <label>Tag / Patrimônio *</label>
+      <input type="text" placeholder="TAG interna"/>
+    </div>
+  </div>
+
+  <div class="grid cols-4">
+    <div><label>Nº de série</label><input type="text" placeholder="Serial"/></div>
+    <div><label>Status operacional *</label>
+      <select>
+        <option>Em operação</option><option>Em estoque</option><option>Emprestado</option>
+        <option>Alugado</option><option>Em manutenção</option><option>Baixado</option>
+      </select>
+    </div>
+    <div><label>Empresa/Entidade *</label><select><option>Matriz</option><option>Filial 01</option></select></div>
+    <div><label>Local *</label><select><option>Depósito</option><option>Loja 01</option><option>TI</option></select></div>
+  </div>
+
+  <div class="grid cols-3">
+    <div><label>Responsável técnico</label><input type="text" placeholder="Nome/usuário"/></div>
+    <div><label>Usuário atual</label><input type="text" placeholder="Colaborador/Setor"/></div>
+    <div><label>Centro de custo</label><input type="text" placeholder="Opcional"/></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <p class="subtitle">Dados de aquisição</p>
+  <div class="grid cols-4">
+    <div><label>Fornecedor</label><input type="text" placeholder="Distribuidor/Fabricante"/></div>
+    <div><label>Nota fiscal</label><input type="text" placeholder="NF-e"/></div>
+    <div><label>Data de compra</label><input type="date"/></div>
+    <div><label>Garantia até</label><input type="date"/></div>
+  </div>
+  <div class="grid cols-3">
+    <div><label>Valor de compra</label><input type="number" min="0" step="0.01" placeholder="0,00"/></div>
+    <div><label>Vida útil (meses)</label><input type="number" min="0" placeholder="36"/></div>
+    <div><label>Depreciação</label><select><option>Linear</option><option>Por uso</option><option>Nenhuma</option></select></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <p class="subtitle">Atributos (herdados da categoria)</p>
+  <div id="attr-list" class="stack"></div>
+  <button type="button" class="btn small" id="add-attr">+ Adicionar atributo</button>
+
+  <div class="divider"></div>
+
+  <p class="subtitle">Itens atrelados</p>
+  <div id="attach-list" class="stack"></div>
+  <button type="button" class="btn small" id="add-attach">+ Adicionar atrelado</button>
+
+  <div class="divider"></div>
+
+  <p class="subtitle">Documentos</p>
+  <div class="grid cols-3">
+    <div class="stack">
+      <label>Fotos</label>
+      <div class="file-zone">Arraste aqui ou <button type="button" class="btn small">escolher</button><input type="file" accept="image/*" multiple/></div>
+    </div>
+    <div class="stack">
+      <label>Garantia/Contrato (PDF)</label>
+      <div class="file-zone">Arraste aqui ou <button type="button" class="btn small">escolher</button><input type="file" accept="application/pdf"/></div>
+    </div>
+    <div class="stack">
+      <label>Outros</label>
+      <div class="file-zone">Arraste aqui ou <button type="button" class="btn small">escolher</button><input type="file" multiple/></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div style="display:flex;justify-content:flex-end;gap:10px">
+    <button class="btn" type="button">Cancelar</button>
+    <button class="btn primary" type="button">Salvar (visual)</button>
+  </div>
+</form>
+
+<div class="card"><p class="hint">Mock visual. Depois mapeamos tabelas e ações.</p></div>
+
+  </div>
+  
+<script>
+function attrRow(){
+  const el=document.createElement('div'); el.className='grid cols-3'; el.style.alignItems='end';
+  el.innerHTML=`
+    <div><label>Campo *</label><input type="text" placeholder="Ex.: CPU / RAM / Voltagem"/></div>
+    <div><label>Valor *</label><input type="text" placeholder="Ex.: i5 / 16GB / Bivolt"/></div>
+    <div class="row"><button type="button" class="btn small danger">Remover</button></div>`;
+  el.querySelector('.btn.danger').addEventListener('click',()=>el.remove()); return el;
+}
+function attachRow(){
+  const el=document.createElement('div'); el.className='grid cols-4'; el.style.alignItems='end';
+  el.innerHTML=`
+    <div><label>Tipo</label><select><option>Categoria</option><option>Modelo</option><option>Ativo</option></select></div>
+    <div><label>Item</label><input type="text" placeholder="Ex.: Monitor 24 / Mouse USB"/></div>
+    <div><label>Função</label><input type="text" placeholder="tela / mouse / teclado"/></div>
+    <div class="row"><button type="button" class="btn small danger">Remover</button></div>
+    <div><label>Obrigatório?</label><select><option>Não</option><option>Sim</option></select></div>
+    <div><label>Consumível?</label><select><option>Não</option><option>Sim</option></select></div>
+    <div><label>Serial obrigatório?</label><select><option>Não</option><option>Sim</option></select></div>
+    <div><label>Desde</label><input type="date"/></div>`;
+  el.querySelector('.btn.danger').addEventListener('click',()=>el.remove()); return el;
+}
+const attrList=document.getElementById('attr-list');
+const attachList=document.getElementById('attach-list');
+document.getElementById('add-attr').addEventListener('click',()=>attrList.appendChild(attrRow()));
+document.getElementById('add-attach').addEventListener('click',()=>attachList.appendChild(attachRow()));
+attrList.appendChild(attrRow());
+attachList.appendChild(attachRow());
+</script>
+
+</body>
+</html>

@@ -1,0 +1,212 @@
+/* =========================================================
+   BPM UI • Fase 1 — Padrões Comuns (tema claro + namespace)
+   Como usar: envolver a página em <div class="bpm"> ... </div>
+   ========================================================= */
+
+/* -----------------------------
+   0) Design Tokens (seus atuais)
+   ----------------------------- */
+:root{
+  --bg:#ffffff;
+  --card:#ffffff;
+  --text:#0f172a;         /* slate-900 */
+  --muted:#475569;        /* slate-600 */
+  --line:#e5e7eb;         /* gray-200 */
+  --chip-bg:#f8fafc;      /* gray-50 */
+  --chip-bd:#cbd5e1;      /* gray-300 */
+  --input-bg:#ffffff;
+  --input-bd:#cbd5e1;
+  --hint:#64748b;         /* slate-500 */
+  --primary:#3b82f6;      /* blue-500 */
+  --primary-ghost:#e0e7ff;
+  --accent:#22c55e;       /* green-500 */
+  --danger:#ef4444;       /* red-500 */
+}
+
+/* Extras de status (para badges, chips e estados) */
+:root{
+  --ok:#16a34a;      /* verde */
+  --warn:#f59e0b;    /* amarelo */
+  --info:#0284c7;    /* azul */
+  --blocked:#ef4444; /* vermelho */
+  --inactive:#94a3b8;/* cinza */
+}
+
+/* ------------------------------------------------
+   1) Base do namespace (isola do StartAdmin)
+   ------------------------------------------------ */
+.bpm{ color:var(--text); }
+.bpm *{ box-sizing:border-box; }
+.bpm body{ background:var(--bg); } /* caso use body dentro do bpm */
+
+/* Containers e títulos */
+.bpm .container{max-width:100%;margin:32px auto;padding:0 16px}
+.bpm header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.bpm h1{font-size:clamp(20px,3vw,28px);margin:0}
+.bpm .subtitle{color:#0f172a;font-weight:700;margin:0 0 12px}
+
+/* Cartão padrão */
+.bpm .card{
+  background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;
+  box-shadow:0 6px 20px rgba(2,6,23,.05)
+}
+
+/* ------------------------------------------------
+   2) Layout helpers
+   ------------------------------------------------ */
+.bpm .grid{display:grid;gap:12px}
+@media (min-width:720px){
+  .bpm .grid.cols-2{grid-template-columns:1fr 1fr}
+  .bpm .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+  .bpm .grid.cols-4{grid-template-columns:repeat(4,1fr)}
+}
+.bpm .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.bpm .stack{display:flex;flex-direction:column;gap:10px}
+.bpm .divider{height:1px;background:var(--line);margin:12px 0}
+.bpm .hidden{display:none !important}
+
+/* Chips (etiquetas suaves) */
+.bpm .chips{display:flex;gap:8px;flex-wrap:wrap}
+.bpm .chip{background:var(--chip-bg);color:#1e293b;border:1px solid var(--chip-bd);padding:6px 10px;border-radius:999px;font-size:12px}
+
+/* ------------------------------------------------
+   3) Tipografia e dicas
+   ------------------------------------------------ */
+.bpm .hint{font-size:12px;color:var(--hint)}
+.bpm .note{font-size:12px;color:#6b7280}
+.bpm .muted{color:var(--muted)}
+
+/* ------------------------------------------------
+   4) Formulários (padrão único)
+   ------------------------------------------------ */
+.bpm label{display:block;font-size:13px;color:#334155;margin:2px 2px 6px}
+.bpm input[type="text"],
+.bpm input[type="url"],
+.bpm input[type="email"],
+.bpm input[type="tel"],
+.bpm input[type="date"],
+.bpm input[type="number"],
+.bpm textarea,
+.bpm select{
+  width:100%;background:var(--input-bg);color:var(--text);border:1px solid var(--input-bd);
+  border-radius:10px;padding:10px 12px;outline:none;transition:border .2s,box-shadow .2s
+}
+.bpm textarea{min-height:100px;resize:vertical}
+.bpm input:focus,.bpm textarea:focus,.bpm select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+
+/* Tamanhos de campo */
+.bpm .field-sm input,.bpm .field-sm select,.bpm .field-sm textarea{padding:8px 10px;font-size:14px;border-radius:8px}
+.bpm .field-lg input,.bpm .field-lg select,.bpm .field-lg textarea{padding:12px 14px;font-size:18px;border-radius:12px}
+
+/* Estados de validação */
+.bpm .is-invalid{border-color:#fca5a5 !important; box-shadow:0 0 0 3px rgba(239,68,68,.12) !important}
+.bpm .error-text{color:#b91c1c;font-size:12px;margin-top:6px}
+.bpm .is-readonly{background:#f8fafc;color:#475569}
+
+/* File / upload consistente */
+.bpm .file-zone{
+  border:2px dashed var(--input-bd);border-radius:12px;padding:16px;text-align:center;background:#fcfdff;color:#475569
+}
+.bpm .file-zone input{display:none}
+
+/* Toggle (radio estilizado) */
+.bpm .toggle{
+  display:flex;gap:12px;background:#fff;padding:6px;border:1px solid var(--line);border-radius:12px;width:max-content
+}
+.bpm .toggle input{display:none}
+.bpm .toggle label{padding:8px 12px;border-radius:8px;cursor:pointer;color:#1e293b;font-weight:600}
+.bpm .toggle input:checked + label{background:var(--primary-ghost);border:1px solid #93c5fd;color:#1e40af}
+
+/* ------------------------------------------------
+   5) Botões (padrão único)
+   ------------------------------------------------ */
+.bpm .btn{
+  border:1px solid var(--input-bd);background:#fff;color:#0f172a;padding:10px 14px;border-radius:10px;
+  cursor:pointer;transition:.2s;font-weight:600;display:inline-flex;align-items:center;gap:8px
+}
+.bpm .btn:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(2,6,23,.06)}
+.bpm .btn.primary{background:linear-gradient(135deg,#60a5fa 0%, #34d399 100%);border:none;color:#05243a}
+.bpm .btn.ghost{background:transparent}
+.bpm .btn.small{padding:6px 10px;font-size:13px}
+.bpm .btn.danger{border-color:#fecaca;color:#991b1b;background:#fff5f5}
+.bpm .btn.outline{background:#fff;border-color:#93c5fd;color:#1e40af}
+.bpm .btn:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* Toolbar (título + ações) */
+.bpm .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.bpm .toolbar .actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ------------------------------------------------
+   6) Tabelas (listar padrão)
+   ------------------------------------------------ */
+.bpm .table{
+  width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff
+}
+.bpm .table th,.bpm .table td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px;text-align:left;vertical-align:middle}
+.bpm .table th{background:#f8fafc;color:#334155}
+.bpm .table.is-compact th,.bpm .table.is-compact td{padding:8px 10px;font-size:13px}
+.bpm .table.is-hover tbody tr:hover{background:#f1f5f9}
+.bpm .table .cell-actions{white-space:nowrap}
+.bpm .table .truncate{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Cabeçalho grudado (quando a tabela estiver em container com altura) */
+.bpm .table.has-sticky-head thead th{position:sticky;top:0;z-index:2}
+
+/* ------------------------------------------------
+   7) Badges (estados padronizados)
+   ------------------------------------------------ */
+.bpm .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;border:1px solid var(--chip-bd);background:var(--chip-bg);color:#1f2937}
+.bpm .badge.ok{border-color:#86efac;background:#ecfdf5;color:#065f46}         /* ok / ativo */
+.bpm .badge.warn{border-color:#fde68a;background:#fffbeb;color:#92400e}      /* atenção */
+.bpm .badge.info{border-color:#bfdbfe;background:#eff6ff;color:#1e40af}      /* informativo */
+.bpm .badge.blocked{border-color:#fecaca;background:#fff1f2;color:#7f1d1d}   /* bloqueado */
+.bpm .badge.inactive{border-color:#e5e7eb;background:#f9fafb;color:#475569}  /* inativo */
+
+/* ------------------------------------------------
+   8) Títulos de seção, chips e pills
+   ------------------------------------------------ */
+.bpm .pill{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid #94a3b8;background:#f1f5f9;color:#0f172a}
+
+/* ------------------------------------------------
+   9) Componentes rápidos
+   ------------------------------------------------ */
+/* Cabeçalho de página com filtros */
+.bpm .page-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.bpm .filters{display:flex;flex-wrap:wrap;gap:8px}
+
+/* Abas simples (para formulários longos) */
+.bpm .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.bpm .tab{
+  padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;color:#1e293b;font-weight:600;cursor:pointer
+}
+.bpm .tab.is-active{background:var(--primary-ghost);border-color:#93c5fd;color:#1e40af}
+
+/* Cards leves para blocos de formulário */
+.bpm .card-muted{background:#f8fafc;border:1px dashed var(--line);border-radius:12px;padding:14px}
+
+/* ------------------------------------------------
+   10) Acessibilidade/Focus
+   ------------------------------------------------ */
+.bpm a:focus,.bpm button:focus,.bpm input:focus,.bpm select:focus,.bpm textarea:focus{
+  outline:2px solid transparent; outline-offset:2px
+}
+
+/* ------------------------------------------------
+   11) Compat notes com StartAdmin
+   ------------------------------------------------ */
+/* Evita que tabelas do tema herdem zebra/cores indevidas quando dentro do .bpm */
+.bpm table{background:#fff}
+.bpm .table thead th{border-bottom:1px solid var(--line)}
+/* Reseta botões bootstrap-like dentro do namespace */
+.bpm button.btn{all:unset;display:inline-flex}
+.bpm button.btn{ /* re-aplica nosso estilo */
+  border:1px solid var(--input-bd);background:#fff;color:#0f172a;padding:10px 14px;border-radius:10px;cursor:pointer;transition:.2s;font-weight:600
+}
+.bpm button.btn:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(2,6,23,.06)}
+.bpm button.btn.primary{background:linear-gradient(135deg,#60a5fa 0%, #34d399 100%);border:none;color:#05243a}
+.bpm button.btn.small{padding:6px 10px;font-size:13px}
+
+/* (Opcional) densidade compacta de página */
+.bpm.compact .card{padding:14px}
+.bpm.compact .grid{gap:10px}
+.bpm.compact .btn{padding:8px 12px}

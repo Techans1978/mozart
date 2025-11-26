@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Leitura NFC (Web NFC) — Demo</title>
+<meta name="theme-color" content="#0ea5e9">
+<style>
+  :root{
+    --bg:#0b1020; --panel:#121a2b; --muted:#9fb3c8; --text:#e6eef7; --accent:#38bdf8; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;
+    background:linear-gradient(180deg,#0a0f1f 0%, #081022 40%, #0c1a2e 100%);
+    color:var(--text); display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .card{
+    width:min(900px,100%); background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02));
+    border:1px solid rgba(255,255,255,.08); border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.35);
+    padding:20px;
+  }
+  header{display:flex; align-items:center; gap:12px; margin-bottom:6px}
+  header h1{font-size:1.25rem; margin:0}
+  header .chip{font:12px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace; padding:4px 8px; border-radius:999px; background:#0b2a3b; color:#9bdcff}
+  .muted{color:var(--muted)}
+  .row{display:grid; grid-template-columns:1fr; gap:16px; margin:14px 0}
+  @media (min-width:860px){ .row{grid-template-columns:1fr 1fr} }
+  .panel{background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:14px}
+  .panel h2{margin:0 0 10px 0; font-size:.95rem; color:#bfe8ff}
+  pre, code{font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; color:#d6eaff}
+  pre{white-space:pre-wrap; word-break:break-word; background:#0b1526; border:1px solid rgba(255,255,255,.06); border-radius:10px; padding:12px; max-height:260px; overflow:auto}
+  .btns{display:flex; gap:10px; flex-wrap:wrap}
+  button{
+    appearance:none; border:1px solid rgba(255,255,255,.18); background:#10243a; color:#dbf3ff;
+    padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600;
+    transition:transform .05s ease, background .2s ease, border .2s ease;
+  }
+  button:hover{background:#12304f}
+  button:active{transform:translateY(1px)}
+  button.primary{background:linear-gradient(180deg,#0ea5e9,#0284c7); border-color:rgba(255,255,255,.22)}
+  button.stop{background:linear-gradient(180deg,#ef4444,#b91c1c); border-color:rgba(255,255,255,.22)}
+  .status{font:13px/1.3 ui-monospace,monospace; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.12); background:#0b1526}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
+  label{font-size:.9rem; color:#cae9ff}
+  input[type="text"], textarea{
+    width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.14);
+    background:#0b1526; color:#e6eef7; outline:none;
+  }
+  small{display:block; color:#9fb3c8}
+  .kvs{display:grid; grid-template-columns:140px 1fr; gap:10px; align-items:center}
+  .pill{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:20px; background:#0b2a3b; color:#9bdcff; font:12px/1.2 ui-monospace,monospace}
+</style>
+</head>
+<body>
+  <div class="card">
+    <header>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0v8a6 6 0 0 1-12 0V8z" stroke="#38bdf8" stroke-width="1.6"/><path d="M9 9v6M12 7v10M15 9v6" stroke="#38bdf8" stroke-width="1.6"/></svg>
+      <h1>Leitura NFC (Web NFC)</h1>
+      <span id="env" class="chip">…</span>
+    </header>
+    <p class="muted">Use <strong>Chrome Android</strong> em <strong>https</strong> (ou localhost). Toque em <em>Iniciar leitura</em> e aproxime a etiqueta NFC (NDEF).</p>
+
+    <div class="row">
+      <div class="panel">
+        <h2>Controles</h2>
+        <div class="btns">
+          <button id="btnStart" class="primary">▶️ Iniciar leitura</button>
+          <button id="btnStop" class="stop" disabled>⏹️ Parar</button>
+          <button id="btnClear">🧹 Limpar</button>
+        </div>
+        <div id="status" class="status" style="margin-top:10px">Pronto.</div>
+
+        <div style="margin-top:12px">
+          <span class="pill" id="supportNFC">NFC: ?</span>
+          <span class="pill" id="supportNDEF">NDEFReader: ?</span>
+          <span class="pill" id="isSecure">Contexto seguro: ?</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Envio automático ao servidor</h2>
+        <div class="kvs">
+          <label for="postUrl">POST URL</label>
+          <input id="postUrl" type="text" value="/api/nfc-capture.php" spellcheck="false">
+          <label for="autoPost">Auto-post</label>
+          <div>
+            <label><input id="autoPost" type="checkbox" checked> Enviar cada leitura (JSON)</label>
+            <small class="muted">Ajuste a rota conforme seu backend (ex.: <code>/modules/middleware/nfc.php</code>).</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="panel">
+        <h2>Última leitura (decodificada)</h2>
+        <pre id="output">—</pre>
+      </div>
+
+      <div class="panel">
+        <h2>Simulação manual (fallback)</h2>
+        <label for="mock">Conteúdo (texto/URL) para simular leitura</label>
+        <input id="mock" type="text" placeholder="ex.: https://exemplo.com/asset/123">
+        <div class="btns" style="margin-top:10px">
+          <button id="btnMock">Simular leitura</button>
+        </div>
+        <small class="muted">Útil em dispositivos sem Web NFC (ex.: iPhone/Safari). O fluxo de envio é o mesmo.</small>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Dados brutos do evento</h2>
+      <pre id="raw">—</pre>
+    </div>
+
+    <footer style="margin-top:14px" class="muted">
+      Dicas: mantenha a tela ativa; aproxime lentamente o centro/traseira do aparelho da etiqueta; algumas capinhas atrapalham.
+    </footer>
+  </div>
+
+<script>
+(() => {
+  // === CONFIGURÁVEIS ===
+  const POST_URL = document.getElementById('postUrl'); // pode mudar na UI
+
+  // === ELEMENTOS ===
+  const btnStart = document.getElementById('btnStart');
+  const btnStop  = document.getElementById('btnStop');
+  const btnClear = document.getElementById('btnClear');
+  const btnMock  = document.getElementById('btnMock');
+  const autoPost = document.getElementById('autoPost');
+
+  const output = document.getElementById('output');
+  const raw    = document.getElementById('raw');
+  const status = document.getElementById('status');
+
+  const pillNFC = document.getElementById('supportNFC');
+  const pillNDEF= document.getElementById('supportNDEF');
+  const pillSec = document.getElementById('isSecure');
+  const envChip = document.getElementById('env');
+
+  let controller = null; // AbortController para parar a leitura
+  let reader = null;
+
+  // === AMBIENTE/DETEÇÃO ===
+  const ua = navigator.userAgent || '';
+  const isAndroid = /Android/i.test(ua);
+  const isChrome  = /Chrome\/\d+/i.test(ua) && !/Edg\//i.test(ua) && !/OPR\//i.test(ua);
+  envChip.textContent = `${isAndroid ? 'Android' : 'Outro'} • ${isChrome ? 'Chrome' : 'Navegador'}`;
+
+  const hasSecure = (location.protocol === 'https:' || location.hostname === 'localhost');
+  setPill(pillSec, 'Contexto seguro', hasSecure);
+
+  const hasNDEF = ('NDEFReader' in window);
+  setPill(pillNDEF, 'NDEFReader', hasNDEF);
+
+  // "NFC" amplo (heurística)
+  const hasNFC = hasNDEF && isAndroid && isChrome;
+  setPill(pillNFC, 'NFC', hasNFC);
+
+  // === HANDLERS ===
+  btnStart.addEventListener('click', startScan);
+  btnStop.addEventListener('click', stopScan);
+  btnClear.addEventListener('click', () => {
+    output.textContent = '—';
+    raw.textContent    = '—';
+    setStatus('Pronto.', 'ok');
+  });
+  btnMock.addEventListener('click', simulateRead);
+
+  function setPill(el, label, ok){
+    el.textContent = `${label}: ${ok ? 'OK' : 'N/D'}`;
+    el.style.background = ok ? '#0b3a2a' : '#3a0b0b';
+    el.style.color = ok ? '#b7ffcf' : '#ffc1c1';
+  }
+
+  function setStatus(msg, tone=''){
+    status.textContent = msg;
+    status.classList.remove('ok','warn','err');
+    if (tone) status.classList.add(tone);
+  }
+
+  function pretty(obj){
+    try{ return JSON.stringify(obj, null, 2) } catch { return String(obj) }
+  }
+
+  function decodeRecord(record){
+    try{
+      if (record.recordType === 'text') {
+        const td = new TextDecoder(record.encoding || 'utf-8');
+        return { type:'text', value: td.decode(record.data) };
+      }
+      if (record.recordType === 'url') {
+        const td = new TextDecoder('utf-8');
+        return { type:'url', value: td.decode(record.data) };
+      }
+      if (record.mediaType) {
+        const td = new TextDecoder('utf-8');
+        return { type:'mime', mediaType: record.mediaType, value: td.decode(record.data) };
+      }
+      // fallback genérico
+      const td = new TextDecoder('utf-8');
+      return { type: record.recordType || 'unknown', value: td.decode(record.data || new Uint8Array()) };
+    } catch(e){
+      return { type:'error', error: String(e) };
+    }
+  }
+
+  async function startScan(){
+    if (!hasSecure) {
+      setStatus('É necessário HTTPS ou localhost para usar Web NFC.', 'warn');
+      return;
+    }
+    if (!hasNDEF) {
+      setStatus('Este navegador não expõe Web NFC (NDEFReader). Use Chrome Android recente.', 'warn');
+      return;
+    }
+    try{
+      controller = new AbortController();
+      reader = new NDEFReader();
+      await reader.scan({ signal: controller.signal });
+      setStatus('Lendo… aproxime a etiqueta NFC.', 'ok');
+      btnStart.disabled = true;
+      btnStop.disabled  = false;
+
+      reader.onreadingerror = (ev) => {
+        setStatus('Falha ao ler. Aproxime novamente ou reposicione.', 'warn');
+      };
+
+      reader.onreading = async (ev) => {
+        try{
+          const { serialNumber, message } = ev;
+          const decoded = (message.records || []).map(decodeRecord);
+          const summary = {
+            ts: new Date().toISOString(),
+            device: { ua, isAndroid, isChrome },
+            serialNumber: serialNumber || null,
+            records: decoded
+          };
+
+          output.textContent = pretty(summary);
+          raw.textContent    = pretty({
+            serialNumber,
+            message: {
+              records: (message.records || []).map(r => ({
+                recordType: r.recordType,
+                mediaType:  r.mediaType || null,
+                encoding:   r.encoding  || null,
+                id:         r.id        || null,
+                dataLen:    r.data ? r.data.byteLength : 0
+              }))
+            }
+          });
+
+          if (autoPost.checked) {
+            await postToServer(summary);
+          }
+          setStatus('Leitura concluída. Você pode aproximar outra etiqueta.', 'ok');
+        } catch(err){
+          setStatus('Erro processando a leitura: ' + err, 'err');
+        }
+      };
+
+    } catch (err){
+      if (String(err).includes('NotAllowedError')) {
+        setStatus('Permissão negada. O gesto foi detectado, mas o acesso ao NFC foi bloqueado.', 'err');
+      } else if (String(err).includes('NotSupportedError')) {
+        setStatus('NFC não suportado neste dispositivo/navegador.', 'err');
+      } else {
+        setStatus('Erro ao iniciar leitura: ' + err, 'err');
+      }
+      btnStart.disabled = false;
+      btnStop.disabled  = true;
+    }
+  }
+
+  function stopScan(){
+    try{
+      if (controller) controller.abort();
+      setStatus('Leitura parada.', 'warn');
+    } finally {
+      btnStart.disabled = false;
+      btnStop.disabled  = true;
+    }
+  }
+
+  async function postToServer(payload){
+    const url = (POST_URL.value || '').trim();
+    if (!url) { setStatus('POST URL vazia — não enviado.', 'warn'); return; }
+    try{
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      setStatus('Dados enviados ao servidor com sucesso.', 'ok');
+    } catch (e){
+      setStatus('Falha ao enviar ao servidor: '+e, 'err');
+    }
+  }
+
+  async function simulateRead(){
+    const input = document.getElementById('mock').value.trim();
+    if (!input) { setStatus('Digite algo para simular.', 'warn'); return; }
+    const mockPayload = {
+      ts: new Date().toISOString(),
+      device: { ua, isAndroid, isChrome, simulated:true },
+      serialNumber: null,
+      records: [
+        { type: (input.startsWith('http') ? 'url':'text'), value: input }
+      ]
+    };
+    output.textContent = pretty(mockPayload);
+    raw.textContent    = pretty({ simulated: true, value: input });
+    if (autoPost.checked) {
+      await postToServer(mockPayload);
+    }
+    setStatus('Simulação enviada.', 'ok');
+  }
+})();
+</script>
+</body>
+</html>

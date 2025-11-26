@@ -1,0 +1,1 @@
+* * * * * /usr/bin/php /var/www/html/public/modules/gestao_ativos/cron/filas_auto_roteamento.php >> /var/log/moz_auto_route.log 2>&1

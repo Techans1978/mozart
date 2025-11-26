@@ -1,0 +1,100 @@
+# =========================
+# SISTEMA MOZART - .gitignore
+# =========================
+
+# -------------------------
+# SO: Windows / macOS
+# -------------------------
+.DS_Store
+*.swp
+ehthumbs.db
+Thumbs.db
+Icon\?
+
+# -------------------------
+# Ferramentas / Metadados
+# -------------------------
+/node_modules
+/vendor
+/.idea
+/.vscode
+/.vagrant
+npm-debug.log
+yarn-error.log
+nbproject/
+
+# -------------------------
+# Variáveis de ambiente
+# (Sempre manter só o exemplo no Git)
+# -------------------------
+.env
+.env.local
+.env.*.local
+
+# -------------------------
+# Configuração sensível
+# (senha de banco, API etc.)
+# -------------------------
+/config.php
+/config.local.php
+/system/config/config.php
+/system/config/config.local.php
+
+# Se usar outro nome, adicionar aqui:
+# /system/config/credentials.php
+
+# -------------------------
+# Arquivos gerados / cache / sessão
+# -------------------------
+/cache/
+/tmp/
+/temp/
+/logs/
+/log/
+/storage/framework/
+/storage/cache/
+/storage/sessions/
+/storage/logs/
+
+# -------------------------
+# Uploads e mídia (dados do usuário)
+# -------------------------
+/uploads/
+/upload/
+/media/
+/public/media/
+/public/uploads/
+/public_html/uploads/
+/public_html/media/
+
+# Se tiver uma pasta específica de anexos:
+# /modules/helpdesk/uploads/
+/modules/helpdesk/uploads/
+/modules/wpp_chat/uploads/
+/modules/gestao_ativos/uploads/
+
+# -------------------------
+# Backups / dumps / zips
+# -------------------------
+/backup/
+/backups/
+/sql/
+/dump/
+/dumps/
+/*.sql
+/*.sql.gz
+/*.zip
+/*.tar
+/*.tar.gz
+
+# -------------------------
+# Outros arquivos transitórios
+# -------------------------
+*.log
+*.tmp
+*.bak
+*.orig
+system/config/connect.php
+/uploads/
+/logs/
+/cache/

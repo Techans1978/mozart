@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <title>Contratos — Listar</title>
+  
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="includes/css/style_gestao_ativos.css?v=1.0.0">
+
+</head>
+<body class="bpm">
+  <div class="container">
+    
+<header class="toolbar">
+  <h1>Contratos — Listar</h1>
+  <div class="actions">
+    <a class="btn" href="contratos-form.html">Novo</a>
+    <button class="btn">Exportar CSV</button>
+    
+  </div>
+</header>
+
+<form class="card" onsubmit="return false;">
+  <p class="subtitle">Filtros</p>
+  
+  <div class="grid cols-4">
+    <div><label>Busca</label><input type="text" placeholder="nº, fornecedor"/></div>
+    <div><label>Tipo</label><select><option>—</option><option>Compra</option><option>Garantia</option><option>Suporte</option><option>Locação</option><option>Sub-locação</option></select></div>
+    <div><label>Status</label><select><option>—</option><option>Ativo</option><option>Pendente</option><option>Encerrado</option></select></div>
+    <div><label>Vencimento</label><select><option>—</option><option>30 dias</option><option>60 dias</option><option>90 dias</option><option>Expirados</option></select></div>
+  </div>
+  
+  <div class="row" style="justify-content:flex-end">
+    <button class="btn">Limpar</button>
+    <button class="btn primary">Aplicar</button>
+  </div>
+</form>
+
+<div id="bulkbar" class="card" style="display:none">
+  <div class="row" style="justify-content:space-between; align-items:center">
+    <div><strong id="bulk-count">0</strong> selecionados</div>
+    <div class="row">
+      <button class="btn small">Inativar</button>
+      <button class="btn small">Excluir</button>
+      <button class="btn small">Exportar</button>
+      <button class="btn small danger">Limpar seleção</button>
+    </div>
+  </div>
+</div>
+
+<section id="list" class="grid cols-2">
+  
+<article class="card">
+  <div class="row" style="justify-content:space-between;align-items:flex-start">
+    <div>
+      <div style="font-weight:700">GAR-2025</div>
+      <div class="hint">Garantia • Dell</div>
+    </div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><span class="pill">Ativo</span> <span class="pill">vence em 45d</span></div>
+  </div>
+  <div class="divider"></div>
+  <div class="grid cols-3"><div><label>Vigência</label><div>01/2024–01/2026</div></div><div><label>Valor total</label><div>R$ 120.000</div></div><div><label>Cobertura</label><div>Notebooks</div></div></div>
+  <div class="divider"></div>
+  <div class="row" style="justify-content:flex-end;gap:8px"><a class="btn small" href="#">c</a><a class="btn small" href="#">o</a><a class="btn small" href="#">n</a><a class="btn small" href="#">t</a><a class="btn small" href="#">r</a><a class="btn small" href="#">a</a><a class="btn small" href="#">t</a><a class="btn small" href="#">o</a><a class="btn small" href="#">s</a><a class="btn small" href="#">-</a><a class="btn small" href="#">f</a><a class="btn small" href="#">o</a><a class="btn small" href="#">r</a><a class="btn small" href="#">m</a><a class="btn small" href="#">.</a><a class="btn small" href="#">h</a><a class="btn small" href="#">t</a><a class="btn small" href="#">m</a><a class="btn small" href="#">l</a></div>
+</article>
+
+<article class="card">
+  <div class="row" style="justify-content:space-between;align-items:flex-start">
+    <div>
+      <div style="font-weight:700">SUP-123</div>
+      <div class="hint">Suporte • Zebra</div>
+    </div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><span class="pill">Ativo</span> <span class="pill">vence em 10d</span></div>
+  </div>
+  <div class="divider"></div>
+  <div class="grid cols-3"><div><label>Vigência</label><div>02/2024–02/2025</div></div><div><label>Valor mensal</label><div>R$ 2.000</div></div><div><label>Cobertura</label><div>Impressoras</div></div></div>
+  <div class="divider"></div>
+  <div class="row" style="justify-content:flex-end;gap:8px"><a class="btn small" href="#">c</a><a class="btn small" href="#">o</a><a class="btn small" href="#">n</a><a class="btn small" href="#">t</a><a class="btn small" href="#">r</a><a class="btn small" href="#">a</a><a class="btn small" href="#">t</a><a class="btn small" href="#">o</a><a class="btn small" href="#">s</a><a class="btn small" href="#">-</a><a class="btn small" href="#">f</a><a class="btn small" href="#">o</a><a class="btn small" href="#">r</a><a class="btn small" href="#">m</a><a class="btn small" href="#">.</a><a class="btn small" href="#">h</a><a class="btn small" href="#">t</a><a class="btn small" href="#">m</a><a class="btn small" href="#">l</a></div>
+</article>
+
+</section>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between; align-items:center">
+    <div class="hint">1–20 de 120</div>
+    <div class="row">
+      <label>Por página</label>
+      <select><option>20</option><option>50</option><option>100</option></select>
+      <button class="btn">Anterior</button>
+      <button class="btn">Próxima</button>
+    </div>
+  </div>
+</div>
+
+  </div>
+  
+</body>
+</html>

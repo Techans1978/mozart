@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <title>Transferências • Cadastro</title>
+  
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="includes/css/style_gestao_ativos.css?v=1.0.0">
+
+</head>
+<body class="bpm">
+  <div class="container">
+    
+<header class="toolbar">
+  <h1>Transferências — Cadastro</h1>
+  <div class="actions">
+    <a class="btn" href="transferencias-listar.html">Listar transferências</a>
+  </div>
+</header>
+
+<form class="card" autocomplete="off" novalidate>
+  <p class="subtitle">Dados da transferência</p>
+  <div class="grid cols-4">
+    <div><label>Tipo *</label><select>
+      <option>Temporária</option><option>Definitiva</option><option>Empréstimo</option>
+    </select></div>
+    <div><label>Origem *</label><input type="text" placeholder="Empresa/Local/Setor"/></div>
+    <div><label>Destino *</label><input type="text" placeholder="Empresa/Local/Setor"/></div>
+    <div><label>Data</label><input type="date"/></div>
+  </div>
+
+  <div class="grid cols-3">
+    <div><label>Responsável na origem</label><input type="text"/></div>
+    <div><label>Responsável no destino</label><input type="text"/></div>
+    <div><label>Transportador</label><input type="text" placeholder="Interno/Transportadora"/></div>
+  </div>
+
+  <div class="grid cols-3">
+    <div><label>Motivo</label><input type="text" placeholder="Projeto, manutenção, realocação..."/></div>
+    <div><label>Previsão de devolução</label><input type="date"/></div>
+    <div><label>Status *</label><select><option>Em preparação</option><option>Em trânsito</option><option>Concluída</option><option>Cancelada</option></select></div>
+  </div>
+
+  <div class="divider"></div>
+  <p class="subtitle">Itens da transferência</p>
+  <div id="tr-itens" class="stack"></div>
+  <button type="button" class="btn small" id="tr-add-item">+ Adicionar item</button>
+
+  <div class="divider"></div>
+  <p class="subtitle">Conferência e cadeia de custódia</p>
+  <div class="grid cols-3">
+    <div class="stack">
+      <label>Checklist de envio</label>
+      <div class="card-muted">
+        <label><input type="checkbox"/> Fotos anexadas</label><br/>
+        <label><input type="checkbox"/> Documentos impressos (ROMANEIO)</label><br/>
+        <label><input type="checkbox"/> Embalagem adequada</label>
+      </div>
+    </div>
+    <div class="stack">
+      <label>Checklist de recebimento</label>
+      <div class="card-muted">
+        <label><input type="checkbox"/> Sem avarias visíveis</label><br/>
+        <label><input type="checkbox"/> Acessórios conferidos</label><br/>
+        <label><input type="checkbox"/> Teste funcional básico</label>
+      </div>
+    </div>
+    <div class="stack">
+      <label>Assinaturas / Responsáveis</label>
+      <div class="file-zone">Anexe termo/assinaturas ou <button type="button" class="btn small">escolha</button><input type="file" multiple/></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div style="display:flex;justify-content:flex-end;gap:10px">
+    <button class="btn" type="button">Cancelar</button>
+    <button class="btn primary" type="button">Salvar (visual)</button>
+  </div>
+</form>
+
+<div class="card"><p class="hint">Mock visual. Depois mapeamos regras de estoque, histórico e assinatura digital.</p></div>
+
+  </div>
+  
+<script>
+function trItemRow(){
+  const el=document.createElement('div'); el.className='grid cols-4'; el.style.alignItems='end';
+  el.innerHTML=`
+    <div><label>Tipo</label><select><option>Categoria</option><option>Modelo</option><option>Ativo</option></select></div>
+    <div><label>Item</label><input type="text" placeholder="Ex.: Notebook / Latitude 5440 / TAG-001"/></div>
+    <div><label>Qtd</label><input type="number" min="1" value="1"/></div>
+    <div class="row"><button type="button" class="btn small danger">Remover</button></div>
+    <div class="cols-span-4"><label>Observações</label><input type="text" placeholder="Acessórios, estado, embalagem..."/></div>
+  `;
+  el.querySelector('.btn.danger').addEventListener('click',()=>el.remove()); return el;
+}
+const trList=document.getElementById('tr-itens');
+document.getElementById('tr-add-item').addEventListener('click',()=>trList.appendChild(trItemRow()));
+trList.appendChild(trItemRow());
+</script>
+
+</body>
+</html>
