@@ -10,7 +10,17 @@ require_once ROOT_PATH . '/system/includes/mozart_menu.php';
 require_once ROOT_PATH . '/system/includes/mozart_menu_render.php';
 
 // Carrega menus dinâmicos do backend (sidebar)
-$menusBack = mozart_get_menu('back', 'sidebar');
+// Carrega menus dinamicamente (agrupados por módulo)
+$menusByModule = mozart_get_menu('back');
+
+// "Achata" em uma lista única de itens
+$menusBack = [];
+foreach ($menusByModule as $moduleSlug => $items) {
+    foreach ($items as $item) {
+        $menusBack[] = $item;
+    }
+}
+
 ?>
 </head>
 <body>

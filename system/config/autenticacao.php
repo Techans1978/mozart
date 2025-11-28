@@ -38,14 +38,21 @@ function usuario_tem_capabilities(array $requiredCaps): bool {
         return false;
     }
 
+    // wildcard global
+    if (!empty($userPerms['*'])) {
+        return true;
+    }
+
+    // Se pelo menos UMA das requiredCaps estiver permitida, OK
     foreach ($requiredCaps as $cap) {
-        if (empty($userPerms[$cap])) {
-            return false;
+        if (!empty($userPerms[$cap])) {
+            return true;
         }
     }
 
-    return true;
+    return false;
 }
+
 
 /**
  * 4) Tela de acesso negado (simples, depois estilizamos)
@@ -59,6 +66,17 @@ function mozart_acesso_negado() {
 
 // 5) Primeiro: garante que o usuário está logado
 proteger_pagina();
+
+// 5) Primeiro: garante que o usuário está logado
+proteger_pagina();
+
+// SUPERADMIN DE HOMOLOG (apenas enquanto estamos desenvolvendo)
+// Se ainda não houver mapa de permissões na sessão, libera tudo.
+if (!isset($_SESSION['user_perms_map'])) {
+    $_SESSION['is_superadmin']   = true;
+    $_SESSION['user_perms_map'] = ['*' => true];
+}
+
 
 // 6) Depois: aplica RBAC por rota (exceto páginas públicas)
 $currentPath = $_SERVER['SCRIPT_NAME'] ?? ''; 
@@ -82,4 +100,20 @@ if (!in_array($currentPath, $rbac_skip, true)) {
             mozart_acesso_negado();
         }
     }
+}
+
+function mozart_get_current_user_capabilities(): array {
+    // 1) se tiver level_id, carrega caps do nível (acl_level_caps)
+    if (!empty($_SESSION['user_level_id'])) {
+        return mozart_load_caps_from_level($_SESSION['user_level_id']);
+    }
+
+    // 2) fallback antigo: se nivel_acesso = bigboss => tudo
+    if (!empty($_SESSION['user_nivel']) && $_SESSION['user_nivel'] === 'bigboss') {
+        return ['*'];
+    }
+
+    // 3) outros enums (admin/gerente/usuario) mapeados para pacotes padrão
+    // ou apenas ['front:*'] etc.
+    return [];
 }
