@@ -16,12 +16,8 @@ if ($decisionId <= 0) {
   die("Informe ?id=DECISION_ID");
 }
 ?>
-<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Mozart — DMN Versões</title>
+<?php include_once ROOT_PATH.'system/includes/head.php'; ?>
+
 <style>
   :root{ --bg:#f6f7f9; --card:#fff; --bd:#e5e7eb; --txt:#111; }
   *{ box-sizing:border-box; }
@@ -44,8 +40,17 @@ if ($decisionId <= 0) {
   pre{ background:#0b1020; color:#e5e7eb; padding:12px; border-radius:12px; overflow:auto; max-height:260px; }
   .actions{ display:flex; gap:8px; flex-wrap:wrap; }
 </style>
-</head>
-<body>
+
+<?php include_once ROOT_PATH.'system/includes/navbar.php'; ?>
+
+<!-- Page Content -->
+<div id="page-wrapper">
+  <div class="container-fluid">
+    <div class="row"><div class="col-lg-12"><h1 class="page-header"><?= APP_NAME ?></h1></div></div>
+
+    <div class="row">
+      <div class="col-lg-12">
+<!-- Page Content -->
 
 <div class="top">
   <div class="brand">Mozart — DMN Versões</div>
@@ -81,6 +86,17 @@ if ($decisionId <= 0) {
     <pre id="xmlPreview">&lt;xml&gt;…&lt;/xml&gt;</pre>
   </div>
 </div>
+
+<!-- Page Content -->
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Page Content -->
+<?php
+// carrega seus scripts globais + Camunda JS (inserido no code_footer.php)
+include_once ROOT_PATH . 'system/includes/code_footer.php';
+?>
 
 <script>
 const decisionId = <?php echo (int)$decisionId; ?>;
@@ -174,5 +190,10 @@ window.download = async (id, filename)=>{ await loadXml(id, filename); };
 load();
 </script>
 
-</body>
-</html>
+
+
+
+
+<?php
+include_once ROOT_PATH . 'system/includes/footer.php';
+?>

@@ -11,12 +11,14 @@ require_once ROOT_PATH . '/system/config/connect.php';
 if (session_status()===PHP_SESSION_NONE) session_start();
 proteger_pagina();
 ?>
-<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Mozart — DMN Categorias</title>
+
+</head>
+<body>
+
+<?php
+include_once ROOT_PATH . 'system/includes/head.php';
+?>
+
 <style>
   :root{ --bg:#f6f7f9; --card:#fff; --bd:#e5e7eb; --txt:#111; }
   *{ box-sizing:border-box; }
@@ -41,8 +43,23 @@ proteger_pagina();
   .rowactions{ display:flex; gap:8px; flex-wrap:wrap; }
   @media (max-width: 1100px){ .grid{ grid-template-columns: 1fr; } }
 </style>
-</head>
-<body>
+
+
+// (se o seu navbar ficar dentro do head/footer, não precisa incluir aqui)
+<?php
+include_once ROOT_PATH . 'system/includes/navbar.php';
+?>
+
+
+<!-- Incio Page Content -->
+<div id="page-wrapper">
+  <div class="container-fluid">
+    <div class="row"><div class="col-lg-12"><h1 class="page-header"><?= APP_NAME ?></h1></div></div>
+
+    <div class="row">
+      <div class="col-lg-12">
+<!-- Meio Page Content -->
+
 
 <div class="top">
   <div class="brand">Mozart — DMN Categorias</div>
@@ -123,6 +140,19 @@ proteger_pagina();
 
   </div>
 </div>
+
+<!-- Meio Page Content -->
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Fim Page Content -->
+
+
+<?php
+// carrega seus scripts globais + Camunda JS (inserido no code_footer.php)
+include_once ROOT_PATH . 'system/includes/code_footer.php';
+?>
 
 <script>
 const API = {
@@ -279,5 +309,6 @@ $('#btnDelete').onclick = del;
 })();
 </script>
 
-</body>
-</html>
+<?php
+include_once ROOT_PATH . 'system/includes/footer.php';
+?>

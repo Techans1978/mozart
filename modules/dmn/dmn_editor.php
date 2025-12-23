@@ -13,16 +13,13 @@ proteger_pagina();
 
 $decisionId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-// Se você tem includes padrão do Mozart, descomente/ajuste:
-// include_once ROOT_PATH . 'system/includes/head.php';
-// include_once ROOT_PATH . 'system/includes/navbar.php';
+
 ?>
-<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Mozart — DMN Editor</title>
+
+
+<?php
+include_once ROOT_PATH . 'system/includes/head.php';
+?>
 
 <!-- CSS do dmn-js -->
 <link rel="stylesheet" href="https://unpkg.com/dmn-js@16.2.0/dist/assets/diagram-js.css">
@@ -156,8 +153,22 @@ $decisionId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
   .sep{ height:1px; background:var(--bd); margin:12px 0; }
 </style>
-</head>
-<body>
+
+
+<?php
+include_once ROOT_PATH . 'system/includes/navbar.php';
+?>
+
+
+<!-- Incio Page Content -->
+<div id="page-wrapper">
+  <div class="container-fluid">
+    <div class="row"></div></div>
+
+    <div class="row">
+      <div class="col-lg-12">
+<!-- Meio Page Content -->
+
 
 <div class="topbar">
   <div class="brand">Mozart — DMN Editor</div>
@@ -292,6 +303,19 @@ $decisionId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
     </div>
   </div>
 </div>
+
+<!-- Meio Page Content -->
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Fim Page Content -->
+
+
+<?php
+// carrega seus scripts globais + Camunda JS (inserido no code_footer.php)
+include_once ROOT_PATH . 'system/includes/code_footer.php';
+?>
 
 <!-- UMD dmn-js -->
 <script src="https://unpkg.com/dmn-js@16.2.0/dist/dmn-modeler.development.js"></script>
@@ -776,5 +800,6 @@ window.addEventListener('keydown', (e)=>{
 });
 </script>
 
-</body>
-</html>
+<?php
+include_once ROOT_PATH . 'system/includes/footer.php';
+?>
