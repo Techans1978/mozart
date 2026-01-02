@@ -565,6 +565,16 @@ include_once ROOT_PATH . 'modules/bpm/includes/content_footer.php';
     let modeler = null;
     let currentFileName = 'diagram.bpmn';
 
+    let currentProcess = {
+      id: null,
+      code: '',
+      name: '',
+      version_id: null,
+      version: null,
+      status: 'draft'
+    };
+
+
     // ✅ precisa ser global no script, porque applySelectedTemplate() usa
     let loadedTemplates = [];
 
@@ -661,14 +671,103 @@ include_once ROOT_PATH . 'modules/bpm/includes/content_footer.php';
       catch (err) { console.error(err); alert('Falha ao importar BPMN: ' + (err?.message || err)); }
     }
 
-    async function saveDiagram(forceAs) {
-      if (!modeler) return;
-      const { xml } = await modeler.saveXML({ format: true });
-      const name = forceAs ? prompt('Nome do arquivo .bpmn:', currentFileName) : currentFileName;
-      if (!name) return;
-      currentFileName = /\.bpmn$/i.test(name) ? name : (name + '.bpmn');
-      saveAs(new Blob([xml], { type: 'application/xml' }), currentFileName);
-    }
+async function openProcess(code, version = null) {
+  const res = await fetch('/modules/bpm/api/load_process.php', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ code, version })
+  });
+  const data = await res.json();
+  if (!res.ok || !data.ok) throw new Error(data.error || 'load failed');
+
+  // seta contexto (isso é o segredo pra Fase 2 ficar “sem medo”)
+  currentFileName = data.code + '.bpmn';
+  currentProcessId = data.process_id;
+  currentVersionId = data.version_id;
+  currentVersion   = data.version;
+
+  await modeler.importXML(data.xml);
+}
+
+async function cloneOrVersion(mode) { // 'version' | 'clone'
+  const res = await fetch('/modules/bpm/api/clone_process.php', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ mode, process_id: currentProcessId })
+  });
+  const data = await res.json();
+  if (!res.ok || !data.ok) throw new Error(data.error || 'clone/version failed');
+
+  // se for "clone", muda o contexto pro novo processo
+  currentProcessId = data.process_id;
+  currentVersionId = data.version_id;
+  currentVersion   = data.version;
+  currentFileName  = (data.code || currentFileName.replace(/\.bpmn$/i,'')) + '.bpmn';
+
+  // opcional: já abre o novo xml retornado
+  if (data.xml) await modeler.importXML(data.xml);
+}
+
+
+
+// globais (deixe perto do topo do seu script)
+let currentProcessId = null;
+let currentVersionId = null;
+let currentVersion = 1;
+
+async function saveDiagram(status = 'draft') {
+  try {
+    const { xml } = await modeler.saveXML({ format: true });
+
+    const payload = {
+      code: currentFileName.replace(/\.bpmn$/i, ''), // "codigo" do processo
+      name: (window.processName || currentFileName.replace(/\.bpmn$/i, '')), // opcional
+      status,                                       // 'draft' | 'published'
+      xml,
+      process_id: currentProcessId,                 // pode ser null na 1a vez
+      version_id: currentVersionId                  // pode ser null na 1a vez
+    };
+
+    const res = await fetch('/modules/bpm/api/save_process.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'save failed');
+
+    // backend passa a ser “dono” do versionamento
+    currentProcessId = data.process_id ?? currentProcessId;
+    currentVersionId = data.version_id ?? currentVersionId;
+    currentVersion   = data.version ?? currentVersion;
+
+    // só pra você ver no console e não se perder
+    console.log('Saved:', { currentProcessId, currentVersionId, currentVersion });
+
+    alert(status === 'published' ? '✅ Publicado!' : '✅ Salvo!');
+  } catch (err) {
+    console.error(err);
+    alert('❌ Erro ao salvar: ' + (err?.message || err));
+  }
+}
+
+// publish (usa o mesmo save, só muda status)
+async function publishDiagram() {
+  return saveDiagram('published');
+}
+
+
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'save failed');
+
+    alert('✅ Salvo!');
+  } catch (err) {
+    console.error(err);
+    alert('❌ Erro ao salvar: ' + (err?.message || err));
+  }
+}
+
 
     async function exportXML() {
       if (!modeler) return;
