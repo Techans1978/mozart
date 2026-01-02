@@ -1,36 +1,52 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
-require_once dirname(__DIR__, 2) . '/config/connect.php'; // $conn
+require_once dirname(__DIR__, 2) . '/config/connect.php';
 
-$name = isset($_GET['name']) ? preg_replace('/[^a-zA-Z0-9_\-]/', '_', $_GET['name']) : '';
-$version = isset($_GET['version']) ? max(1, (int)$_GET['version']) : 1;
+$processId = isset($_GET['process_id']) ? (int) $_GET['process_id'] : 0;
+$version = isset($_GET['version']) ? max(1, (int) $_GET['version']) : 0;
 
-if (!$name) { http_response_code(400); echo json_encode(['error'=>'name required']); exit; }
-
-/** 1) banco primeiro **/
-try {
-  if ($conn->query("SHOW TABLES LIKE 'bpm_processes'")->num_rows > 0) {
-    $stmt = $conn->prepare("SELECT bpmn_xml FROM bpm_processes WHERE name = ? AND version = ? LIMIT 1");
-    if ($stmt) {
-      $stmt->bind_param("si", $name, $version);
-      $stmt->execute();
-      $stmt->bind_result($bpmn);
-      if ($stmt->fetch() && $bpmn) {
-        $stmt->close();
-        echo json_encode(['xml' => $bpmn, 'name' => $name, 'version' => $version]); exit;
-      }
-      $stmt->close();
-    }
-  }
-} catch (Throwable $e) {
-  // fallback
+if (!$processId) {
+  http_response_code(400);
+  echo json_encode(['error' => 'process_id required']);
+  exit;
 }
 
-/** 2) fallback arquivo **/
-$dir = __DIR__ . '/../storage/processes';
-$file = $dir . '/' . $name . '_v' . $version . '.bpmn';
-if (!is_file($file)) { http_response_code(404); echo json_encode(['error'=>'not found']); exit; }
-$xml = file_get_contents($file);
-echo json_encode(['xml' => $xml, 'name' => $name, 'version' => $version]);
+if ($version > 0) {
+  $stmt = $conn->prepare("
+    SELECT v.id, v.version, v.status, v.bpmn_xml, v.snapshot_json
+    FROM bpm_process_version v
+    WHERE v.process_id = ? AND v.version = ?
+    LIMIT 1
+  ");
+  $stmt->bind_param("ii", $processId, $version);
+} else {
+  $stmt = $conn->prepare("
+    SELECT v.id, v.version, v.status, v.bpmn_xml, v.snapshot_json
+    FROM bpm_process p
+    JOIN bpm_process_version v ON v.id = p.current_version_id
+    WHERE p.id = ?
+    LIMIT 1
+  ");
+  $stmt->bind_param("i", $processId);
+}
 
-?>
+$stmt->execute();
+$res = $stmt->get_result();
+$row = $res->fetch_assoc();
+$stmt->close();
+
+if (!$row) {
+  http_response_code(404);
+  echo json_encode(['error' => 'not found']);
+  exit;
+}
+
+echo json_encode([
+  'ok' => true,
+  'process_id' => $processId,
+  'version_id' => (int) $row['id'],
+  'version' => (int) $row['version'],
+  'status' => $row['status'],
+  'xml' => $row['bpmn_xml'],
+  'snapshot' => $row['snapshot_json'] ? json_decode($row['snapshot_json'], true) : null
+], JSON_UNESCAPED_UNICODE);
