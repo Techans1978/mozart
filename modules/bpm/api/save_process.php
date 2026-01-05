@@ -97,16 +97,15 @@ try {
   $conn->commit();
 
   echo json_encode([
-    'ok' => true,
-    'process' => [
-      'id' => $processId,
-      'code' => $code,
-      'name' => $name,
-      'status' => 'draft',
-      'current_version' => $currentVersion,
-      'current_version_id' => $versionId
-    ]
-  ]);
+  'ok' => true,
+  'process_id' => $processId,
+  'version_id' => $versionId,
+  'version' => $currentVersion,
+  'status' => 'draft',
+  'code' => $code,
+  'name' => $name
+], JSON_UNESCAPED_UNICODE);
+
 } catch (Throwable $e) {
   $conn->rollback();
   http_response_code(500);
