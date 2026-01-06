@@ -69,16 +69,25 @@
           "name": "mozart:executionMode"
         }
       },
-
       {
-        "label": "Formulário (ID)",
+        "label": "Formulário (slug)",
         "type": "String",
-        "description": "Por enquanto ID simples. Depois vira dropdown dinâmico.",
+        "description": "Ex: aprovacao_compra (slug do moz_forms).",
         "binding": {
           "type": "property",
-          "name": "mozart:formId"
+          "name": "mozart:formSlug"
         }
       },
+      {
+        "label": "Formulário (versão)",
+        "type": "String",
+        "description": "Ex: 1, 2, 3... (vazio = latest no publish).",
+        "binding": {
+          "type": "property",
+          "name": "mozart:formVersion"
+        }
+      },
+
       {
         "label": "Modo do formulário",
         "type": "Dropdown",

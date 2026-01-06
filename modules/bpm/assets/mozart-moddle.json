@@ -43,7 +43,12 @@
           "type": "String"
         },
         {
-          "name": "formId",
+          "name": "formSlug",
+          "isAttr": true,
+          "type": "String"
+        },
+        {
+          "name": "formVersion",
           "isAttr": true,
           "type": "String"
         },
