@@ -5,7 +5,7 @@ require_once dirname(__DIR__, 2) . '/config/connect.php'; // $conn
 $in = json_decode(file_get_contents('php://input'), true);
 
 $code = isset($in['code']) ? preg_replace('/[^a-zA-Z0-9_\-]/', '_', $in['code']) : '';
-$name = isset($in['name']) ? trim($in['name']) : '';
+$name = isset($in['name']) ? trim((string)$in['name']) : '';
 $xml  = (string)($in['xml'] ?? '');
 
 if (!$code || !$xml) {
@@ -14,9 +14,9 @@ if (!$code || !$xml) {
 }
 if (!$name) $name = $code;
 
-// normaliza XML (remove BOM e garante string)
+// normaliza XML (remove BOM)
 $xml = preg_replace('/^\xEF\xBB\xBF/', '', $xml);
-$sizeBytes = strlen($xml);        // bytes reais
+$sizeBytes = strlen($xml);
 $sha1      = sha1($xml);
 
 $conn->begin_transaction();
@@ -46,7 +46,7 @@ try {
     $stmt->close();
   }
 
-  // 2) garante draft da versão atual
+  // 2) pega draft da versão atual (ou cria)
   $stmt = $conn->prepare("
     SELECT id FROM bpm_process_version
     WHERE process_id=? AND version=? AND status='draft'
@@ -60,16 +60,10 @@ try {
   if ($ver) {
     $versionId = (int)$ver['id'];
 
-    // ✅ FASE 5: checksum + size oficiais
     $stmt = $conn->prepare("
       UPDATE bpm_process_version
-      SET
-        bpmn_xml = NULL,
-        snapshot_json = NULL,
-        checksum_sha1 = ?,
-        size_bytes = ?,
-        updated_at = NOW()
-      WHERE id = ?
+      SET bpmn_xml=NULL, snapshot_json=NULL, checksum_sha1=?, size_bytes=?, updated_at=NOW()
+      WHERE id=?
     ");
     $stmt->bind_param("sii", $sha1, $sizeBytes, $versionId);
     $stmt->execute();
@@ -90,8 +84,7 @@ try {
     $stmt->close();
   }
 
-  // 3) ✅ FASE 5: XML como asset oficial (bpm_bpmn_asset)
-  // remove asset anterior da mesma versão/tipo (idempotente)
+  // 3) ✅ XML como asset oficial
   $stmt = $conn->prepare("DELETE FROM bpm_bpmn_asset WHERE version_id=? AND type='bpmn_xml'");
   $stmt->bind_param("i", $versionId);
   $stmt->execute();

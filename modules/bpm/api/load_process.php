@@ -22,8 +22,8 @@ if ($version > 0) {
   $stmt = $conn->prepare("SELECT id, version, status FROM bpm_process_version WHERE process_id=? AND version=? ORDER BY id DESC LIMIT 1");
   $stmt->bind_param("ii", $processId, $version);
 } else {
-  $stmt = $conn->prepare("SELECT id, version, status FROM bpm_process_version WHERE id=? LIMIT 1");
   $vId = (int)$proc['current_version_id'];
+  $stmt = $conn->prepare("SELECT id, version, status FROM bpm_process_version WHERE id=? LIMIT 1");
   $stmt->bind_param("i", $vId);
 }
 $stmt->execute();
@@ -42,8 +42,9 @@ $row = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 $xml = $row['content_text'] ?? '';
+
+// fallback legado (opcional)
 if (!$xml) {
-  // fallback opcional: se existir legado em bpmn_xml
   $stmt = $conn->prepare("SELECT bpmn_xml FROM bpm_process_version WHERE id=? LIMIT 1");
   $stmt->bind_param("i", $versionId);
   $stmt->execute();
