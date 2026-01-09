@@ -218,6 +218,107 @@ include_once ROOT_PATH . 'modules/bpm/includes/content_style.php';
     font-size: 11px;
     border-radius: 6px;
   }
+
+
+  /* ===== Menubar estilo "software de PC" ===== */
+  .menubar {
+    height: var(--toolbar-h);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 20;
+  }
+
+  .menu { position: relative; }
+  .menu-btn {
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 13px;
+    color: #111827;
+  }
+  .menu-btn:hover { background:#f3f4f6; }
+  .menu-drop {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 260px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(0,0,0,.12);
+    padding: 6px;
+    display: none;
+  }
+  .menu.open .menu-drop { display: block; }
+  .menu-item {
+    width: 100%;
+    text-align: left;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .menu-item:hover { background:#f3f4f6; }
+  .menu-sep { height: 1px; background:#e5e7eb; margin: 6px 4px; }
+
+  /* ===== Modal simples (Criar com IA) ===== */
+  .moz-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  .moz-modal-backdrop.show { display: flex; }
+  .moz-modal {
+    width: min(820px, calc(100vw - 24px));
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    overflow: hidden;
+  }
+  .moz-modal .hd {
+    padding: 12px 14px;
+    border-bottom: 1px solid #e5e7eb;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .moz-modal .bd { padding: 14px; }
+  .moz-modal textarea {
+    width: 100%;
+    min-height: 180px;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 10px 12px;
+    resize: vertical;
+    font-size: 13px;
+  }
+  .moz-modal .ft {
+    padding: 12px 14px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
 </style>
 
 <!-- Page Content -->
@@ -225,21 +326,47 @@ include_once ROOT_PATH . 'modules/bpm/includes/content_style.php';
         <!-- Top Content -->
 
         <div class="shell">
-          <div class="toolbar">
-            <h2>Mozart BPM — Designer</h2>
+          <div class="menubar">
+            <div class="menu">
+              <button class="menu-btn" type="button">Arquivo ▾</button>
+              <div class="menu-drop">
+                <button class="menu-item" id="btnNew" type="button">Novo</button>
+                <input type="file" id="fileOpen" accept=".bpmn,.xml" />
+                <button class="menu-item" id="btnOpen" type="button" title="Ctrl+O">Abrir…</button>
+                <div class="menu-sep"></div>
+                <button class="menu-item" id="btnSave" type="button" title="Ctrl+S">Salvar</button>
+                <button class="menu-item" id="btnSaveAs" type="button" title="Ctrl+Shift+S">Salvar como…</button>
+              </div>
+            </div>
 
-            <button class="btn" id="btnNew">Novo</button>
+            <div class="menu">
+              <button class="menu-btn" type="button">Editar ▾</button>
+              <div class="menu-drop">
+                <button class="menu-item" id="btnNormalizeIds" type="button">Normalizar IDs</button>
+              </div>
+            </div>
 
-            <input type="file" id="fileOpen" accept=".bpmn,.xml" />
-            <button class="btn" id="btnOpen" title="Ctrl+O">Abrir</button>
+            <div class="menu">
+              <button class="menu-btn" type="button">Importar ▾</button>
+              <div class="menu-drop">
+                <button class="menu-item" id="btnAiCreatePrompt" type="button">Criar com IA…</button>
+                <button class="menu-item" id="btnAiCreateFull" type="button">Criar completo por IA…</button>
+                <div class="menu-sep"></div>
+                <input type="file" id="fileImportFluig" accept=".bpmn,.xml,.json,.zip" />
+                <button class="menu-item" id="btnImportFluig" type="button">Importar Fluig (.bpmn/.json/.zip)…</button>
+                <input type="file" id="fileImportCamunda" accept=".bpmn,.xml" />
+                <button class="menu-item" id="btnImportCamunda" type="button">Importar Camunda (.bpmn)…</button>
+              </div>
+            </div>
 
-            <button class="btn" id="btnSave" title="Ctrl+S">Salvar</button>
-            <button class="btn" id="btnSaveAs" title="Ctrl+Shift+S">Salvar como…</button>
-
-            <button class="btn" id="btnExportXML">Baixar XML</button>
-            <button class="btn" id="btnExportSVG">Baixar SVG</button>
-            <button class="btn" id="btnExportJSON">Baixar JSON</button>
-            <button class="btn" id="btnNormalizeIds">Normalizar IDs</button>
+            <div class="menu">
+              <button class="menu-btn" type="button">Exportar ▾</button>
+              <div class="menu-drop">
+                <button class="menu-item" id="btnExportXML" type="button">Baixar XML</button>
+                <button class="menu-item" id="btnExportSVG" type="button">Baixar SVG</button>
+                <button class="menu-item" id="btnExportJSON" type="button">Baixar JSON</button>
+              </div>
+            </div>
 
             <div class="spacer"></div>
 
@@ -249,12 +376,33 @@ include_once ROOT_PATH . 'modules/bpm/includes/content_style.php';
             </select>
             <button class="btn" id="btnApplyTpl" title="Aplica o template no elemento selecionado">Aplicar</button>
 
-            <button class="btn primary" id="btnPublish">Publicar</button>
+            <button class="btn primary" id="btnPublish" type="button">Publicar</button>
           </div>
 
           <div class="work">
             <div id="canvas"></div>
             <div id="properties"></div>
+<!-- ===== Modal: Criar com IA ===== -->
+<div id="aiBackdrop" class="moz-modal-backdrop" aria-hidden="true">
+  <div class="moz-modal" role="dialog" aria-modal="true">
+    <div class="hd">
+      <div id="aiTitle">Criar com IA</div>
+      <button class="btn btn-xs" id="aiClose" type="button">Fechar</button>
+    </div>
+    <div class="bd">
+      <div style="font-size:12px; color:#6b7280; margin-bottom:6px;">
+        Descreva o fluxo em português. Ex.: “Solicitação de compra: abrir, aprovar, executar, finalizar”.
+      </div>
+      <textarea id="aiPrompt" placeholder="Descreva o processo aqui..."></textarea>
+      <div id="aiHint" style="font-size:12px; color:#6b7280; margin-top:8px;"></div>
+    </div>
+    <div class="ft">
+      <button class="btn" id="aiCancel" type="button">Cancelar</button>
+      <button class="btn primary" id="aiRun" type="button">Gerar</button>
+    </div>
+  </div>
+</div>
+
           </div>
         </div>
 
@@ -616,6 +764,9 @@ include_once ROOT_PATH . 'modules/bpm/includes/content_footer.php';
       bindDnD(modeler);
       bindShortcuts(modeler);
 
+      initMenubar();
+      initAiModal();
+
     }).catch(err => {
       console.error(err);
       alert('Erro ao inicializar o modeler: ' + (err?.message || err));
@@ -641,6 +792,10 @@ include_once ROOT_PATH . 'modules/bpm/includes/content_footer.php';
       bind('btnPublish', () => publish());
       bind('btnExportJSON', () => exportJSON());
       bind('btnNormalizeIds', () => normalizeIds());
+      bind('btnAiCreatePrompt', () => openAiModal('prompt'));
+      bind('btnAiCreateFull', () => openAiModal('full'));
+      bind('btnImportFluig', () => $('#fileImportFluig')?.click());
+      bind('btnImportCamunda', () => $('#fileImportCamunda')?.click());
       $('#fileOpen').addEventListener('change', async (ev) => {
         const f = ev.target.files?.[0];
         if (!f) return;
@@ -649,8 +804,68 @@ include_once ROOT_PATH . 'modules/bpm/includes/content_footer.php';
         await importXML(xml);
         ev.target.value = '';
       });
+          $('#fileImportFluig')?.addEventListener('change', async (ev) => {
+        const f = ev.target.files?.[0];
+        if (!f) return;
+        // MVP: se for BPMN/XML, importa direto; JSON/ZIP ficam para próxima etapa
+        if (/\.(bpmn|xml)$/i.test(f.name)) {
+          const xml = await readFile(f);
+          await importXML(xml);
+        } else {
+          alert('Importador Fluig (.json/.zip) ainda em construção. Por enquanto importe .bpmn.');
+        }
+        ev.target.value = '';
+      });
+
+      $('#fileImportCamunda')?.addEventListener('change', async (ev) => {
+        const f = ev.target.files?.[0];
+        if (!f) return;
+        const xml = await readFile(f);
+        await importXML(xml);
+        ev.target.value = '';
+      });
     }
     function bind(id, fn) { const el = document.getElementById(id); if (el) el.onclick = fn; }
+
+
+    function initMenubar() {
+      const menus = Array.from(document.querySelectorAll('.menubar .menu'));
+      menus.forEach(m => {
+        const btn = m.querySelector('.menu-btn');
+        if (!btn) return;
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          // fecha outras
+          menus.forEach(x => { if (x !== m) x.classList.remove('open'); });
+          m.classList.toggle('open');
+        });
+      });
+
+      document.addEventListener('click', () => {
+        menus.forEach(m => m.classList.remove('open'));
+      });
+    }
+
+    function initAiModal() {
+      const back = document.getElementById('aiBackdrop');
+      const closeBtn = document.getElementById('aiClose');
+      const cancelBtn = document.getElementById('aiCancel');
+      const runBtn = document.getElementById('aiRun');
+
+      if (closeBtn) closeBtn.addEventListener('click', closeAiModal);
+      if (cancelBtn) cancelBtn.addEventListener('click', closeAiModal);
+      if (runBtn) runBtn.addEventListener('click', () => {
+        const ta = document.getElementById('aiPrompt');
+        aiGenerate(ta ? ta.value : '', aiCurrentMode);
+      });
+
+      if (back) {
+        back.addEventListener('click', (e) => {
+          if (e.target === back) closeAiModal();
+        });
+      }
+    }
 
     async function newDiagram() {
       if (!modeler) return;
@@ -662,6 +877,112 @@ include_once ROOT_PATH . 'modules/bpm/includes/content_footer.php';
     async function importXML(xml) {
       try { await modeler.importXML(xml); }
       catch (err) { console.error(err); alert('Falha ao importar BPMN: ' + (err?.message || err)); }
+    }
+
+
+
+    /* =========================================================
+     * IA — Gerar BPMN a partir de prompt
+     * =======================================================*/
+    const AI_ENDPOINT = (window.MOZART_BASE_URL || '') + '/modules/bpm/api/ai_generate.php';
+    let aiCurrentMode = 'prompt';
+
+    function openAiModal(mode) {
+      aiCurrentMode = mode === 'full' ? 'full' : 'prompt';
+      const back = document.getElementById('aiBackdrop');
+      const ta = document.getElementById('aiPrompt');
+      const title = document.getElementById('aiTitle');
+      const hint = document.getElementById('aiHint');
+
+      if (!back || !ta || !title || !hint) {
+        // fallback simples
+        const p = window.prompt('Descreva o processo:');
+        if (p) aiGenerate(p, aiCurrentMode);
+        return;
+      }
+
+      title.textContent = (aiCurrentMode === 'full') ? 'Criar completo por IA' : 'Criar com IA';
+      hint.textContent  = (aiCurrentMode === 'full')
+        ? 'Modo completo: tenta transformar tarefas genéricas em UserTasks e coloca placeholders Mozart (form/assignment).'
+        : 'Modo simples: gera um BPMN base para você ajustar no Designer.';
+
+      ta.value = '';
+      back.classList.add('show');
+      ta.focus();
+    }
+
+    function closeAiModal() {
+      const back = document.getElementById('aiBackdrop');
+      if (back) back.classList.remove('show');
+    }
+
+    async function aiGenerate(promptText, mode) {
+      try {
+        const prompt = String(promptText || '').trim();
+        if (!prompt) return;
+
+        const res = await fetch(AI_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'Falha ao gerar BPMN via IA');
+        }
+
+        let xml = data.xml || data.bpmn || '';
+        if (!xml) throw new Error('IA não retornou XML');
+
+        if (mode === 'full') {
+          xml = mozartMakeFullBpmn(xml);
+        }
+
+        await importXML(xml);
+        closeAiModal();
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao gerar com IA: ' + (err?.message || err));
+      }
+    }
+
+    function mozartMakeFullBpmn(xml) {
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xml, 'application/xml');
+
+        // adiciona namespace mozart se não existir
+        const defs = doc.documentElement;
+        if (defs && !defs.getAttribute('xmlns:mozart')) {
+          defs.setAttribute('xmlns:mozart', 'http://mozart.superabc.com.br/schema/bpmn');
+        }
+
+        // converte <bpmn:task> para <bpmn:userTask> (bem MVP)
+        const tasks = Array.from(doc.getElementsByTagNameNS('*', 'task'));
+        tasks.forEach(t => {
+          const ut = doc.createElementNS(t.namespaceURI, t.prefix ? (t.prefix + ':userTask') : 'userTask');
+
+          // copia attrs
+          Array.from(t.attributes || []).forEach(a => ut.setAttribute(a.name, a.value));
+          // copia filhos
+          while (t.firstChild) ut.appendChild(t.firstChild);
+
+          // placeholders Mozart (sem quebrar nada se já existir)
+          if (!ut.getAttribute('mozart:formSlug')) ut.setAttribute('mozart:formSlug', 'form_slug_a_definir');
+          if (!ut.getAttribute('mozart:formVersion')) ut.setAttribute('mozart:formVersion', '1');
+          if (!ut.getAttribute('mozart:assignmentType')) ut.setAttribute('mozart:assignmentType', 'role');
+          if (!ut.getAttribute('mozart:assignmentValue')) ut.setAttribute('mozart:assignmentValue', 'operador');
+
+          t.parentNode?.replaceChild(ut, t);
+        });
+
+        const ser = new XMLSerializer();
+        return ser.serializeToString(doc);
+      } catch (e) {
+        console.warn('mozartMakeFullBpmn falhou, mantendo original', e);
+        return xml;
+      }
     }
 
 async function openProcess(code, version = null) {

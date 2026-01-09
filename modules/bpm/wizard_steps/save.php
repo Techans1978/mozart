@@ -1,44 +1,89 @@
 <?php
+// modules/bpm/wizard_steps/save.php
+// Wizard BPM (7 passos) - persiste estado em session e salva processo quando aplicavel.
+
 if (session_status() === PHP_SESSION_NONE) session_start();
+
 require_once __DIR__ . '/../_lib/bpm_store.php';
+
 $store = new BpmStore();
 $state = $_SESSION['bpm_wizard'] ?? [];
-$step = intval($_GET['step'] ?? 1);
 
-switch ($step){
+$step = max(1, min(7, intval($_GET['step'] ?? 1)));
+
+switch ($step) {
+
+  // 1) Informacoes
   case 1:
-    $state['nome']=$_POST['nome']??''; $state['codigo']=$_POST['codigo']??''; $state['categoria']=$_POST['categoria']??''; break;
+    $state['nome']        = trim((string)($_POST['nome'] ?? ''));
+    $state['codigo']      = trim((string)($_POST['codigo'] ?? ''));
+    $catId = intval($_POST['categoria_id'] ?? 0);
+    $state['categoria_id'] = ($catId > 0) ? $catId : null;
+    break;
+
+  // 2) Acessos
   case 2:
-    $state['origem']=$_POST['origem']??'novo'; $state['ia_prompt']=$_POST['ia_prompt']??null;
-    if (!empty($_FILES['upload']['tmp_name'])){
-      $tmp = file_get_contents($_FILES['upload']['tmp_name']);
-      $state['upload_tmp'] = substr($tmp,0,200000);
-      if (stripos($_FILES['upload']['name'], '.bpmn') !== false){ $state['bpmn_xml'] = $tmp; }
-    }
-    if ($state['origem']==='ia' && !empty($state['ia_prompt'])){
-      $state['bpmn_xml'] = "<bpmn:definitions><!-- placeholder IA --></bpmn:definitions>";
+    // Aqui a view manda CSV (1 linha), mantemos como array
+    $state['acessos']['grupos'] = array_values(array_filter(array_map('trim', explode(',', (string)($_POST['grupos'] ?? '')))));
+    $state['acessos']['papeis'] = array_values(array_filter(array_map('trim', explode(',', (string)($_POST['papeis'] ?? '')))));
+    $state['acessos']['perfis'] = array_values(array_filter(array_map('trim', explode(',', (string)($_POST['perfis'] ?? '')))));
+    break;
+
+  // 4) Salvar rascunho
+  case 4:
+    $state['status'] = 'draft';
+
+    $proc = [
+      'id'       => $state['id'] ?? null,
+      'name'     => $state['nome'] ?? 'Sem nome',
+      'code'     => ($state['codigo'] ?? '') ?: null,
+      // Mantem compatibilidade: o store antigo usa 'category'
+      'category' => $state['categoria_id'] ?? null,
+      'status'   => 'draft',
+      'version'  => 1,
+      'active'   => 0,
+      'bpmn_xml' => $state['bpmn_xml'] ?? '',
+      'forms'    => $state['forms'] ?? [],
+    ];
+
+    $saved = $store->saveProcess($proc);
+    if (is_array($saved) && !empty($saved['id'])) {
+      $state['id'] = $saved['id'];
     }
     break;
-  case 3:
-    $state['acessos']['grupos']=array_filter(array_map('trim', explode(',', $_POST['grupos']??'')));
-    $state['acessos']['papeis']=array_filter(array_map('trim', explode(',', $_POST['papeis']??'')));
-    $state['acessos']['perfis']=array_filter(array_map('trim', explode(',', $_POST['perfis']??'')));
-    break;
+
+  // 5) Publicar
   case 5:
-    $state['forms']=$_POST['forms']??[]; break;
-  case 6:
-    $issues=[]; $xml=$state['bpmn_xml']??'';
-    if(!$xml) $issues[]='Nenhum diagrama carregado';
-    if (strpos($xml, '<bpmn:endEvent')===false) $issues[]='Nenhum evento de fim encontrado';
-    $state['teste_ia']['issues']=$issues?:['Nenhum problema crítico encontrado']; break;
+    $state['status'] = 'published';
+
+    $proc = [
+      'id'       => $state['id'] ?? null,
+      'name'     => $state['nome'] ?? 'Sem nome',
+      'code'     => ($state['codigo'] ?? '') ?: null,
+      'category' => $state['categoria_id'] ?? null,
+      'status'   => 'published',
+      'version'  => 1,
+      'active'   => 1,
+      'bpmn_xml' => $state['bpmn_xml'] ?? '',
+      'forms'    => $state['forms'] ?? [],
+    ];
+
+    $saved = $store->saveProcess($proc);
+    if (is_array($saved) && !empty($saved['id'])) {
+      $state['id'] = $saved['id'];
+    }
+    break;
+
+  // 7) Limpar wizard
   case 7:
-    $state['teste_pessoa']['feedback']=$_POST['feedback']??''; break;
-  case 8:
-    $state['status']=$_POST['status']??'draft';
-    $proc=[ 'id'=>$state['id']??null, 'name'=>$state['nome']??'Sem nome', 'code'=>$state['codigo']??null, 'category'=>$state['categoria']??null,
-            'status'=>$state['status']??'draft', 'version'=>1, 'active'=>($state['status']??'draft')==='published',
-            'bpmn_xml'=>$state['bpmn_xml']??'', 'forms'=>$state['forms']??[] ];
-    $saved=$store->saveProcess($proc); $state['id']=$saved['id']; break;
+    unset($_SESSION['bpm_wizard']);
+    header('Location: /modules/bpm/wizard_bpm.php?step=1');
+    exit;
 }
+
 $_SESSION['bpm_wizard'] = $state;
-$next = min(8, $step+1); header('Location: /modules/bpm/wizard_bpm.php?step='.$next);
+
+// Redireciona para o proximo passo
+$next = min(7, $step + 1);
+header('Location: /modules/bpm/wizard_bpm.php?step=' . $next);
+exit;

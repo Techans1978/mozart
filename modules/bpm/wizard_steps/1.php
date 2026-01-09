@@ -1,5 +1,5 @@
 <?php /* Categoria */ ?>
-<div class="card"><h2>1) Categoria</h2>
+<div class="card"><h2>1) Informacoes</h2>
 <form method="post" action="/modules/bpm/wizard_steps/save.php?step=1">
   <div class="row">
     <div class="col-12 col-md-12">

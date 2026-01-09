@@ -1,84 +1,108 @@
-<?php /* Origem */ ?>
-
+<div class="card"><h2>2) Acessos</h2>
 <?php
-// Evita warning quando ainda não tiver origem no state
-$origem = $state['origem'] ?? '';
+/* Acessos – carregar opções do sistema */
+
+// estado atual do wizard para acessos
+$acessos = $state['acessos'] ?? [];
+$selGrupos = $acessos['grupos'] ?? [];
+$selPapeis = $acessos['papeis'] ?? [];
+$selPerfis = $acessos['perfis'] ?? [];
+
+// garante que sejam arrays
+$selGrupos = is_array($selGrupos) ? $selGrupos : [];
+$selPapeis = is_array($selPapeis) ? $selPapeis : [];
+$selPerfis = is_array($selPerfis) ? $selPerfis : [];
+
+$grupos = $papeis = $perfis = [];
+
+if (isset($conn) && $conn instanceof mysqli) {
+
+    if ($res = $conn->query("SELECT id, nome FROM grupos ORDER BY nome")) {
+        while ($row = $res->fetch_assoc()) {
+            $grupos[] = $row;
+        }
+        $res->free();
+    }
+
+    if ($res = $conn->query("SELECT id, nome FROM papeis ORDER BY nome")) {
+        while ($row = $res->fetch_assoc()) {
+            $papeis[] = $row;
+        }
+        $res->free();
+    }
+
+    if ($res = $conn->query("SELECT id, nome FROM perfis ORDER BY nome")) {
+        while ($row = $res->fetch_assoc()) {
+            $perfis[] = $row;
+        }
+        $res->free();
+    }
+}
 ?>
 
-<div class="card"><h2>2) Origem do fluxo</h2>
-<form method="post" enctype="multipart/form-data" action="/modules/bpm/wizard_steps/save.php?step=2">
-  <label>
-    <input type="radio" name="origem" value="novo"
-           <?php echo ($origem === 'novo' ? 'checked' : ''); ?>>
-    Criar novo
-  </label><br>
+  <form method="post" action="/modules/bpm/wizard_steps/save.php?step=2">
+    <div class="row g-4">
 
-  <label>
-    <input type="radio" name="origem" value="ia"
-           <?php echo ($origem === 'ia' ? 'checked' : ''); ?>>
-    Criar completo por IA
-  </label><br>
+      <div class="col-12 col-lg-3">
+        <div class="mb-2"><strong>Grupos</strong></div>
+        <select name="grupos[]" class="form-select w-100" multiple size="8">
+          <?php foreach ($grupos as $g): ?>
+            <?php
+              $id   = (string)$g['id'];
+              $nome = $g['nome'];
+              $sel  = in_array($id, $selGrupos, true) ? 'selected' : '';
+            ?>
+            <option value="<?php echo htmlspecialchars($id); ?>" <?php echo $sel; ?>>
+              <?php echo htmlspecialchars($nome); ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+        <div class="small text-muted mt-2">
+          Grupos que poderão iniciar ou participar deste processo.
+        </div>
+      </div>
 
-  <label>
-    <input type="radio" name="origem" value="fluig"
-           <?php echo ($origem === 'fluig' ? 'checked' : ''); ?>>
-    Importar Fluig (.bpmn/.json/zip)
-  </label><br>
+      <div class="col-12 col-lg-3">
+        <div class="mb-2"><strong>Papéis</strong></div>
+        <select name="papeis[]" class="form-select w-100" multiple size="8">
+          <?php foreach ($papeis as $p): ?>
+            <?php
+              $id   = (string)$p['id'];
+              $nome = $p['nome'];
+              $sel  = in_array($id, $selPapeis, true) ? 'selected' : '';
+            ?>
+            <option value="<?php echo htmlspecialchars($id); ?>" <?php echo $sel; ?>>
+              <?php echo htmlspecialchars($nome); ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+        <div class="small text-muted mt-2">
+          Papéis vinculados às tarefas deste processo.
+        </div>
+      </div>
 
-  <label>
-    <input type="radio" name="origem" value="camunda"
-           <?php echo ($origem === 'camunda' ? 'checked' : ''); ?>>
-    Importar Camunda (.bpmn)
-  </label>
+      <div class="col-12 col-lg-3">
+        <div class="mb-2"><strong>Perfis</strong></div>
+        <select name="perfis[]" class="form-select w-100" multiple size="8">
+          <?php foreach ($perfis as $pf): ?>
+            <?php
+              $id   = (string)$pf['id'];
+              $nome = $pf['nome'];
+              $sel  = in_array($id, $selPerfis, true) ? 'selected' : '';
+            ?>
+            <option value="<?php echo htmlspecialchars($id); ?>" <?php echo $sel; ?>>
+              <?php echo htmlspecialchars($nome); ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+        <div class="small text-muted mt-2">
+          Perfis autorizados a visualizar/atuar no processo.
+        </div>
+      </div>
 
-  <hr>
-
-  <div class="row">
-    <div class="col-12 mb-3">
-      <label for="ia_prompt"><strong>Descrição (se IA)</strong></label>
-      <textarea
-          id="ia_prompt"
-          name="ia_prompt"
-          class="form-control"
-          rows="6"
-          placeholder="Descreva aqui o processo para a IA montar o fluxo (etapas, responsáveis, regras, exceções, prazos, etc.)"
-      ><?php echo htmlspecialchars($state['ia_prompt'] ?? ''); ?></textarea>
     </div>
 
-    <div class="col-12 col-md-6 mb-3">
-  <label class="form-label"><strong>Upload opcional (.bpmn, .json ou .zip)</strong></label>
+    <button class="btn primary mt-3">Salvar</button>
+  </form>
 
-  <div class="border rounded p-3">
-    <div class="d-flex align-items-center mb-2">
-      <button type="button"
-              class="btn btn-outline-primary btn-sm"
-              onclick="document.getElementById('upload').click();">
-        Escolher arquivo
-      </button>
-      <span id="upload-name" class="ms-2 small text-muted">
-        Nenhum arquivo selecionado
-      </span>
-    </div>
-
-    <!-- input real fica escondido -->
-    <input
-        type="file"
-        id="upload"
-        name="upload"
-        class="d-none"
-        accept=".bpmn,.json,.zip"
-        onchange="document.getElementById('upload-name').textContent =
-                  this.files[0] ? this.files[0].name : 'Nenhum arquivo selecionado';"
-    >
-
-    <div class="small text-muted">
-      Use um arquivo exportado do Fluig ou Camunda se já tiver o fluxo pronto.
-    </div>
-  </div>
-</div>
-
-  </div>
-
-  <button class="btn primary">Processar</button>
-</form>
 </div>

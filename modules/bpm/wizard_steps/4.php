@@ -1,21 +1,23 @@
-<?php /* Desenho — usa o designer existente */ ?>
+<?php /* Step 4: Salvar rascunho */ ?>
 <div class="card">
-  <h2>4) Desenho (usando o seu bpm_designer.php)</h2>
+  <h2>4) Salvar rascunho</h2>
 
-  <div class="nav" style="margin-bottom:8px">
-    <a class="btn"
-       href="/modules/bpm/bpm_designer.php?from=wizard&return=/modules/bpm/wizard_bpm.php%3Fstep=4"
-       target="_blank">Abrir Designer em nova aba</a>
+  <?php if (!empty($state['id'])): ?>
+    <div class="alert alert-info">
+      Processo em edicao: <strong>#<?php echo (int)$state['id']; ?></strong>
+      | Status atual: <strong><?php echo htmlspecialchars($state['status'] ?? 'draft'); ?></strong>
+    </div>
+  <?php endif; ?>
+
+  <div class="alert alert-warning">
+    Neste passo voce salva o rascunho no banco e mantem o status como <strong>draft</strong>.
   </div>
 
-  <div style="height:560px; border:1px solid #1f2745; border-radius:12px; overflow:hidden; background:#0c1226">
-    <iframe src="/modules/bpm/designer-wizard.php?from=wizard"
-            title="BPM Designer"
-            style="width:100%; height:100%; border:0;"></iframe>
-  </div>
+  <form method="post" action="/modules/bpm/wizard_steps/save.php?step=4">
+    <button class="btn primary">Salvar rascunho</button>
+  </form>
 
-  <p class="small">
-    O Wizard não injeta bpmn-js; toda edição ocorre no seu Designer.
-    Depois de salvar/publicar, volte para os próximos passos.
-  </p>
+  <div class="small text-muted" style="margin-top:10px;">
+    Dica: o desenho (BPMN) deve estar salvo no designer antes de salvar o rascunho.
+  </div>
 </div>

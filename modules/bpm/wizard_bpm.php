@@ -1,6 +1,6 @@
 <?php
 // modules/bpm/wizard_bpm.php
-// Mozart BPM — Wizard (8 passos) embutido no layout padrão do sistema
+// Mozart BPM — Wizard (7 passos) embutido no layout padrão do sistema
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -25,20 +25,34 @@ include_once ROOT_PATH . 'modules/bpm/includes/content_style.php';
 include_once ROOT_PATH . 'system/includes/navbar.php';
 
 // ===== Lógica do Wizard =====
-$step = max(1, min(8, intval($_GET['step'] ?? 1)));
+$step = max(1, min(7, intval($_GET['step'] ?? 1)));
 $state = $_SESSION['bpm_wizard'] ?? [
-  'id'=>null,'nome'=>'','codigo'=>'','categoria'=>'','origem'=>'novo',
-  'acessos'=>['grupos'=>[],'papeis'=>[],'perfis'=>[]],
-  'bpmn_xml'=>'','forms'=>[],'teste_ia'=>['issues'=>[]],'teste_pessoa'=>['history'=>[]],
-  'status'=>'draft'
+  'id'           => null,
+  'nome'         => '',
+  'codigo'       => '',
+  'categoria_id' => null,
+
+  // governance
+  'acessos' => ['grupos'=>[], 'papeis'=>[], 'perfis'=>[]],
+
+  // model (BPMN as source of truth)
+  'bpmn_xml' => '',
+
+  // draft/publish state
+  'status'   => 'draft'
 ];
 
 // helper para montar URLs respeitando BASE_URL
 function step_link($n){ return BASE_URL . '/modules/bpm/wizard_bpm.php?step=' . intval($n); }
 
 $labels = [
-  1=>'Categoria', 2=>'Origem do fluxo', 3=>'Acessos', 4=>'Desenho',
-  5=>'Formulários', 6=>'Teste por IA', 7=>'Teste com Pessoa', 8=>'Salvar/Concluir'
+  1=>'Informacoes',
+  2=>'Acessos',
+  3=>'Desenho do fluxo',
+  4=>'Salvar rascunho',
+  5=>'Publicar',
+  6=>'Validar / Checklist',
+  7=>'Concluir'
 ];
 ?>
 
@@ -59,7 +73,7 @@ $labels = [
           <div class="panel-body">
 
             <div class="btn-group" role="group" aria-label="Passos do Wizard" style="flex-wrap:wrap">
-              <?php for ($i=1; $i<=8; $i++): ?>
+              <?php for ($i=1; $i<=7; $i++): ?>
                 <?php $active = ($i === $step) ? 'btn-primary' : 'btn-default'; ?>
                 <a class="btn <?= $active ?> btn-sm" href="<?= step_link($i) ?>">
                   <?= $i . '. ' . htmlspecialchars($labels[$i]) ?>
@@ -78,6 +92,32 @@ $labels = [
         <div class="panel panel-default">
           <div class="panel-body">
             <?php
+            // ===== Categorias BPM (para o step 1) =====
+           $categorias = [];
+            try {
+              $has = $conn->query("SHOW TABLES LIKE 'bpm_categorias'");
+              if ($has && $has->num_rows > 0) {
+
+                // tenta com colunas "novas", se falhar cai no básico
+                $rs = $conn->query("SELECT id, nome FROM bpm_categorias WHERE ativo = 1 ORDER BY sort_order ASC, nome ASC");
+                if (!$rs) {
+                  $rs = $conn->query("SELECT id, nome FROM bpm_categorias ORDER BY nome ASC");
+                }
+
+                if ($rs) $categorias = $rs->fetch_all(MYSQLI_ASSOC);
+
+              } else {
+                $has2 = $conn->query("SHOW TABLES LIKE 'bpm_categoria'");
+                if ($has2 && $has2->num_rows > 0) {
+                  $rs2 = $conn->query("SELECT id, nome FROM bpm_categoria ORDER BY nome ASC");
+                  if ($rs2) $categorias = $rs2->fetch_all(MYSQLI_ASSOC);
+                }
+              }
+            } catch (Throwable $e) {
+              $categorias = [];
+            }
+
+
               $view = __DIR__ . '/wizard_steps/' . $step . '.php';
               if (file_exists($view)) {
                 include $view;
@@ -99,10 +139,10 @@ $labels = [
           <?php endif; ?>
         </div>
         <div class="pull-right">
-          <?php if ($step < 8): ?>
+          <?php if ($step < 7): ?>
             <a class="btn btn-primary" href="<?= step_link($step + 1) ?>">Avançar →</a>
           <?php endif; ?>
-          <a class="btn btn-link" href="<?= BASE_URL ?>/modules/bpm/list_bpm.php">Voltar à lista</a>
+          <a class="btn btn-link" href="<?= BASE_URL ?>/modules/bpm/processos-listar.php">Voltar à lista</a>
         </div>
         <div class="clearfix"></div>
       </div>
