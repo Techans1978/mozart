@@ -187,7 +187,14 @@ include_once ROOT_PATH.'system/includes/navbar.php';
                   <td><?= h([1=>'Em operação',2=>'Em estoque',3=>'Emprestado',4=>'Alugado',5=>'Em manutenção',6=>'Baixado'][$r['status_id']] ?? $r['status_id']) ?></td>
                   <td><?= h($r['local_nome'] ?: '—') ?></td>
                   <td>
-                    <a class="btn btn-xs btn-default" href="<?= BASE_URL ?>/modules/gestao_ativos/ativos-form.php?id=<?= (int)$r['id'] ?>">Editar</a>
+                    <a class="btn btn-xs btn-default"
+                      href="<?= BASE_URL ?>/modules/gestao_ativos/ativos-form.php?id=<?= (int)$r['id'] ?>">Editar</a>
+
+                    <a class="btn btn-xs btn-info"
+                      href="<?= BASE_URL ?>/modules/gestao_ativos/ativos-vida.php?id=<?= (int)$r['id'] ?>">Vida</a>
+
+                    <a class="btn btn-xs btn-primary"
+                      href="<?= BASE_URL ?>/modules/gestao_ativos/manutencoes-listar.php?ativo_id=<?= (int)$r['id'] ?>">Manutenções</a>
 
                     <?php if ($hasAtivoFlag): ?>
                       <form method="post" style="display:inline" onsubmit="return confirmToggle(<?= (int)$r['id'] ?>, <?= (int)$r['ativo'] ?>)">

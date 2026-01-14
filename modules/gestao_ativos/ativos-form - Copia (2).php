@@ -24,18 +24,6 @@ function table_exists(mysqli $db,$t){
 }
 function ensure_dir($abs){ if(!is_dir($abs)) @mkdir($abs,0775,true); return is_dir($abs) && is_writable($abs); }
 
-/**
- * bind_param com array dinâmico (precisa passar por referência)
- */
-function stmt_bind_params(mysqli_stmt $stmt, string $types, array $params): void {
-  $refs = [];
-  foreach ($params as $k => $v) $refs[$k] = &$params[$k];
-  array_unshift($refs, $types);
-  if (!call_user_func_array([$stmt, 'bind_param'], $refs)) {
-    throw new Exception('Falha no bind_param.');
-  }
-}
-
 if (empty($_SESSION['csrf_ativo'])) $_SESSION['csrf_ativo'] = bin2hex(random_bytes(16));
 $csrf = $_SESSION['csrf_ativo'];
 
@@ -220,18 +208,15 @@ if (isset($_GET['ajax']) && $_GET['ajax']==='busca_ativos') {
       $types  .= 'sss'; $args[]  = $q; $args[]=$q; $args[]=$q;
     }
 
-    // evita sugerir ativos que já estejam como destino de depends (sem descrição) em outro item
-    if (table_exists($dbc,'moz_ativo_relacao')) {
-      $where[] = "NOT EXISTS (
-                    SELECT 1
-                      FROM moz_ativo_relacao r
-                     WHERE r.destino_id = a.id
-                       AND r.tipo='depends'
-                       AND (r.descricao IS NULL OR r.descricao='')
-                       AND r.origem_id <> ?
-                  )";
-      $types .= 'i'; $args[] = $idAtual;
-    }
+    $where[] = "NOT EXISTS (
+                  SELECT 1
+                    FROM moz_ativo_relacao r
+                   WHERE r.destino_id = a.id
+                     AND r.tipo='depends'
+                     AND (r.descricao IS NULL OR r.descricao='')
+                     AND r.origem_id <> ?
+                )";
+    $types .= 'i'; $args[] = $idAtual;
 
     $sql = "SELECT a.id, a.nome, a.tag_patrimonial, a.numero_serie
               FROM moz_ativo a
@@ -239,7 +224,7 @@ if (isset($_GET['ajax']) && $_GET['ajax']==='busca_ativos') {
              ORDER BY a.nome ASC
              LIMIT 20";
     $st = $dbc->prepare($sql);
-    stmt_bind_params($st, $types, $args);
+    $st->bind_param($types, ...$args);
     $st->execute();
     $rs = $st->get_result();
     while($r=$rs->fetch_assoc()){
@@ -272,112 +257,6 @@ if (isset($_GET['ajax']) && $_GET['ajax']==='depositos') {
   $empresa_id = (int)($_GET['empresa_id'] ?? 0);
   $out = carregarDepositos($dbc, $empresa_id ?: null, $depositoTable);
   echo json_encode($out); exit;
-}
-
-/* ================== AJAX: ga_list children (cascata) ================== */
-if (isset($_GET['ajax']) && $_GET['ajax']==='ga_children') {
-  header('Content-Type: application/json; charset=utf-8');
-
-  if (!$hasGaList) { echo json_encode([]); exit; }
-
-  $slug = preg_replace('/[^a-z0-9_\-]/i','', $_GET['slug'] ?? '');
-  $parent_id = ($_GET['parent_id'] ?? '') === '' ? 0 : (int)$_GET['parent_id'];
-
-  $list_id = ga_list_id($dbc, $slug);
-  if (!$list_id) { echo json_encode([]); exit; }
-
-  $hasActive = has_col($dbc,'ga_list_item','active');
-
-  $sqlAll = "SELECT id, parent_id, name, sort_order".($hasActive?", active":"")."
-              FROM ga_list_item
-             WHERE list_id=? ".($hasActive?"AND active=1":"")."
-             ORDER BY sort_order ASC, name ASC";
-  $st = $dbc->prepare($sqlAll);
-  $st->bind_param('i', $list_id);
-  $st->execute();
-  $rs = $st->get_result();
-
-  $items = [];
-  $children = [];
-  while($r=$rs->fetch_assoc()){
-    $id = (int)$r['id'];
-    $pid = ($r['parent_id']===null ? 0 : (int)$r['parent_id']);
-    $items[$id] = [
-      'id'=>$id,
-      'parent_id'=>$pid,
-      'name'=>$r['name'],
-      'sort_order'=>(int)($r['sort_order'] ?? 0),
-    ];
-    if (!isset($children[$pid])) $children[$pid]=[];
-    $children[$pid][]=$id;
-  }
-  $st->close();
-
-  foreach($children as $pid=>$arr){
-    usort($arr, function($a,$b) use ($items){
-      $oa = $items[$a]['sort_order'] ?? 0;
-      $ob = $items[$b]['sort_order'] ?? 0;
-      if ($oa !== $ob) return $oa <=> $ob;
-      return strcasecmp($items[$a]['name'] ?? '', $items[$b]['name'] ?? '');
-    });
-    $children[$pid]=$arr;
-  }
-
-  $mkLabel = function($id) use (&$mkLabel, $items){
-    if (!isset($items[$id])) return '';
-    $name = $items[$id]['name'] ?? '';
-    $pid  = (int)($items[$id]['parent_id'] ?? 0);
-    if ($pid<=0) return $name;
-    $p = $mkLabel($pid);
-    return $p ? ($p.' - '.$name) : $name;
-  };
-
-  $out = [];
-  foreach(($children[$parent_id] ?? []) as $cid){
-    $out[] = ['id'=>$cid, 'label'=>$mkLabel($cid)];
-  }
-
-  echo json_encode($out); exit;
-}
-
-/* ================== AJAX: ga_list path (root -> leaf) ================== */
-if (isset($_GET['ajax']) && $_GET['ajax']==='ga_path') {
-  header('Content-Type: application/json; charset=utf-8');
-
-  if (!$hasGaList) { echo json_encode([]); exit; }
-
-  $slug = preg_replace('/[^a-z0-9_\-]/i','', $_GET['slug'] ?? '');
-  $id   = (int)($_GET['id'] ?? 0);
-
-  $list_id = ga_list_id($dbc, $slug);
-  if (!$list_id || $id<=0) { echo json_encode([]); exit; }
-
-  $hasActive = has_col($dbc,'ga_list_item','active');
-  $sqlAll = "SELECT id, parent_id".($hasActive?", active":"")."
-              FROM ga_list_item
-             WHERE list_id=? ".($hasActive?"AND active=1":"")."";
-  $st = $dbc->prepare($sqlAll);
-  $st->bind_param('i', $list_id);
-  $st->execute();
-  $rs = $st->get_result();
-
-  $parentOf = [];
-  while($r=$rs->fetch_assoc()){
-    $iid = (int)$r['id'];
-    $pid = ($r['parent_id']===null ? 0 : (int)$r['parent_id']);
-    $parentOf[$iid]=$pid;
-  }
-  $st->close();
-
-  $path = [];
-  $cur = $id;
-  $guard = 0;
-  while($cur>0 && isset($parentOf[$cur]) && $guard < 50){
-    array_unshift($path, $cur);
-    $cur = (int)$parentOf[$cur];
-    $guard++;
-  }
-  echo json_encode($path); exit;
 }
 
 /* ====== Campos customizados ====== */
@@ -416,21 +295,7 @@ if ($hasGaList) {
 if ($_SERVER['REQUEST_METHOD']==='POST') {
   if (!hash_equals($csrf, $_POST['csrf'] ?? '')) die('CSRF inválido.');
 
-    $id = (int)($_POST['id'] ?? 0);
-
-  // evita warnings/erro: $cat_id não definido no POST
-  $cat_id = ($_POST['cat_id'] ?? '') === '' ? 0 : (int)$_POST['cat_id'];
-
-  // se não veio cat_id no POST (form não tem), e está editando, busca do banco
-  if ($cat_id === 0 && $id > 0 && table_exists($dbc,'moz_ativo') && has_col($dbc,'moz_ativo','cat_id')) {
-    $stCat = $dbc->prepare("SELECT cat_id FROM moz_ativo WHERE id=? LIMIT 1");
-    $stCat->bind_param('i', $id);
-    $stCat->execute();
-    $rowCat = $stCat->get_result()->fetch_assoc();
-    $stCat->close();
-    if ($rowCat && isset($rowCat['cat_id'])) $cat_id = (int)$rowCat['cat_id'];
-  }
-
+  $id = (int)($_POST['id'] ?? 0);
 
   // 1) Nome (lista Nome do Ativo + checkbox Digitar)
   $nome_digit   = isset($_POST['nome_digit']) ? 1 : 0;
@@ -471,17 +336,13 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
   $marca_id = ($_POST['marca_id'] ?? '')==='' ? null : (int)$_POST['marca_id'];
   $modelo_id = ($_POST['modelo_id'] ?? '')==='' ? null : (int)$_POST['modelo_id'];
   $tag   = trim($_POST['tag_patrimonial'] ?? '');
-  $tag   = ($tag === '') ? null : $tag;   // <-- evita '' (quebra UNIQUE)
-
   $serie = trim($_POST['numero_serie'] ?? '');
-  $serie = ($serie === '') ? null : $serie; // opcional: mesma lógica p/ série
   $ativo_reg = $hasAtivoFlag ? (int)($_POST['ativo'] ?? 1) : 1;
 
   $fornecedor_id = $hasFornecedorTbl && ($_POST['fornecedor_id']??'')!=='' ? (int)$_POST['fornecedor_id'] : null;
   $nf_numero     = $hasNF ? trim($_POST['nf_numero'] ?? '') : null;
   $data_compra   = ($_POST['data_compra'] ?? '') ?: null;
-
-
+  $cat_id = null;
 
   // 7) Garantia (meses)
   $garantia_meses = (int)($_POST['garantia_meses'] ?? 0);
@@ -512,18 +373,13 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 
   // manutenção preventiva
   $per_txt = trim($_POST['manut_periodicidade'] ?? '');
-
-  // IMPORTANTE: nunca deixar NULL (coluna no banco é NOT NULL)
-  $man_unid = 'meses'; // valor default seguro (funciona até se for ENUM('dias','meses'))
-  $man_qtd  = 0;
-
-  if ($per_txt && preg_match('/^(\d+)([dm])$/', $per_txt, $m)) {
+  $man_unid = null; $man_qtd = 0;
+  if ($per_txt && preg_match('/^(\d+)([dm])$/',$per_txt,$m)) {
     $man_qtd  = (int)$m[1];
-    $man_unid = ($m[2] === 'd') ? 'dias' : 'meses';
+    $man_unid = ($m[2]==='d') ? 'dias' : 'meses';
   }
-
   $man_ult = ($_POST['manut_ultimo'] ?? '') ?: null;
-  $man_alertar = $hasManutAlertar ? (int)($_POST['manut_alertar'] ?? ($man_qtd > 0 ? 1 : 0)) : null;
+  $man_alertar = $hasManutAlertar ? (int)($_POST['manut_alertar'] ?? ($man_qtd>0?1:0)) : null;
 
   // validações mínimas
   if ($nome==='') $err = 'Informe o nome do ativo.';
@@ -567,46 +423,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $outros_paths[]='uploads/ativos/'.$fname;
     }
   }
-
-  // ===== manter valores digitados se der erro =====
-$rec = array_merge(is_array($rec ?? null) ? $rec : [], [
-  'local_id' => $local_id,
-  'marca_id' => $marca_id,
-  'modelo_id' => $modelo_id,
-  'tag_patrimonial' => $tag,
-  'numero_serie' => $serie,
-  'status_id' => $status_id,
-  'ativo' => $ativo_reg,
-  'fornecedor_id' => $fornecedor_id,
-  'nf_numero' => $nf_numero,
-  'data_compra' => $data_compra,
-  'garantia_meses' => $garantia_meses,
-  'custo_aquisicao' => $custo,
-  'depreciacao_meses' => $deprec,
-  'centro_custo' => $centro_custo,
-  'observacoes' => $observacoes,
-
-  // flags/ga-list
-  'nome_digit' => $nome_digit,
-  'nome_item_id' => $nome_item_id,
-  'nome_txt' => $nome_txt,
-  'informar_categoria' => $informar_categoria,
-  'categoria_item_id' => $categoria_item_id,
-  'informar_deposito' => $informar_deposito,
-  'deposito_id' => $deposito_id,
-  'sector_item_id' => $sector_item_id,
-  'aquisicao_tipo' => $aquisicao_tipo,
-
-  // manutenção
-  'manut_unid' => $man_unid,
-  'manut_qtd' => $man_qtd,
-  'manut_ultimo' => $man_ult,
-  'manut_alertar' => $man_alertar,
-
-  // categoria base (se você usa em outros pontos)
-  'cat_id' => $cat_id,
-]);
-
 
   if (!$err) {
     $dbc->begin_transaction();
@@ -676,7 +492,7 @@ $rec = array_merge(is_array($rec ?? null) ? $rec : [], [
         $types.="i"; $args[]=$id;
 
         $st=$dbc->prepare($sql);
-        stmt_bind_params($st, $types, $args);
+        $st->bind_param($types, ...$args);
         $st->execute();
         $st->close();
 
@@ -766,7 +582,7 @@ $rec = array_merge(is_array($rec ?? null) ? $rec : [], [
         if ($col_aq_loc){ $types.="s"; $args[]=$aquisicao_tipo; }
 
         $st=$dbc->prepare($sql);
-        stmt_bind_params($st, $types, $args);
+        $st->bind_param($types, ...$args);
         $st->execute();
         $id=$st->insert_id;
         $st->close();
@@ -787,7 +603,7 @@ $rec = array_merge(is_array($rec ?? null) ? $rec : [], [
       }
 
       // impedimento de atrelamento duplicado (mantido)
-      if (!empty($_POST['atrelados']) && is_array($_POST['atrelados']) && table_exists($dbc,'moz_ativo_relacao')) {
+      if (!empty($_POST['atrelados']) && is_array($_POST['atrelados'])) {
         $conflitos = [];
         $chk = $dbc->prepare("SELECT origem_id FROM moz_ativo_relacao
                               WHERE destino_id=? AND tipo='depends'
@@ -831,7 +647,7 @@ $rec = array_merge(is_array($rec ?? null) ? $rec : [], [
         }
       }
 
-      // 12) anexos
+      // 12) anexos (mantido: grava; e no form abaixo lista para baixar)
       if ($hasAnexoTbl) {
         if ($photos_paths){
           $a=$dbc->prepare("INSERT INTO moz_ativo_anexo (ativo_id, tipo, path) VALUES (?,?,?)");
@@ -867,32 +683,25 @@ $modelos=[];
 
 $locais = $empresas; // Local = empresas
 
-if (!isset($rec) || !is_array($rec)) {
-  $rec = [
-    'nome'=>'','cat_id'=>'','marca_id'=>'','modelo_id'=>'','tag_patrimonial'=>'','numero_serie'=>'',
-    'status_id'=>'','ativo'=>1,'local_id'=>'','deposito_id'=>'',
-    'fornecedor_id'=>'','nf_numero'=>'','data_compra'=>'',
-    'garantia_ate'=>'','garantia_meses'=>0,
-    'custo_aquisicao'=>'','depreciacao_meses'=>'','centro_custo'=>'','observacoes'=>'',
-    'manut_unid'=>'','manut_qtd'=>0,'manut_ultimo'=>'','manut_alertar'=>1,
+$rec = [
+  'nome'=>'','cat_id'=>'','marca_id'=>'','modelo_id'=>'','tag_patrimonial'=>'','numero_serie'=>'',
+  'status_id'=>'','ativo'=>1,'local_id'=>'','deposito_id'=>'',
+  'fornecedor_id'=>'','nf_numero'=>'','data_compra'=>'',
+  'garantia_ate'=>'','garantia_meses'=>0,
+  'custo_aquisicao'=>'','depreciacao_meses'=>'','centro_custo'=>'','observacoes'=>'',
+  'manut_unid'=>'','manut_qtd'=>0,'manut_ultimo'=>'','manut_alertar'=>1,
 
-    // 1) Nome (lista + digitar)
-    'nome_digit'=>0,'nome_item_id'=>'','nome_txt'=>'',
-
-    // 3) Categoria (checkbox + lista)
-    'informar_categoria'=>0,'categoria_item_id'=>'',
-
-    // 4) Depósito (checkbox)
-    'informar_deposito'=>0,
-
-    // 5) SETOR/SUBSETOR
-    'sector_item_id'=>'',
-
-    // 6) Aquisição/Locação
-    'aquisicao_tipo'=>'',
-  ];
-}
-
+  // 1) Nome (opcional persistência por colunas)
+  'nome_digit'=>0,'nome_item_id'=>'','nome_txt'=>'',
+  // 3) Categoria lista + checkbox
+  'informar_categoria'=>0,'categoria_item_id'=>'',
+  // 4) Depósito checkbox
+  'informar_deposito'=>0,
+  // 5) SETOR/SUBSETOR
+  'sector_item_id'=>'',
+  // 6) Aquisição/Locação
+  'aquisicao_tipo'=>'',
+];
 $cf_defs=[]; $cf_vals=[]; $rels=[]; $atrelados=[];
 
 // fornecedores (se tabela existir)
@@ -967,7 +776,10 @@ if ($id>0 && !$err && $_SERVER['REQUEST_METHOD']!=='POST'){
     if($col_sector_item)  $rec['sector_item_id']=$row['sector_item_id'];
     if($col_aq_loc)       $rec['aquisicao_tipo']=$row['aquisicao_tipo'];
 
+    // fallback visual de checkbox depósito: se não tiver coluna, marca se tiver deposito_id
     if(!$col_inf_deposito) $rec['informar_deposito'] = !empty($rec['deposito_id']) ? 1 : 0;
+
+    // fallback visual de checkbox categoria: se não tiver coluna, marca se tiver categoria_item_id
     if(!$col_inf_cat) $rec['informar_categoria'] = !empty($rec['categoria_item_id']) ? 1 : 0;
 
     if($rec['marca_id'] && $hasModeloTbl){
@@ -994,6 +806,7 @@ if ($id>0 && !$err && $_SERVER['REQUEST_METHOD']!=='POST'){
     while($x=$r->fetch_assoc()) $rels[]=$x;
   }
 
+  // anexos para exibir/baixar
   if ($hasAnexoTbl && $hasAnexoTipoCol && $hasAnexoPathCol){
     $anexos = ['foto'=>[], 'contrato'=>[], 'outros'=>[]];
     $r=$dbc->query("SELECT tipo,path FROM moz_ativo_anexo WHERE ativo_id=".(int)$id." ORDER BY id DESC");
@@ -1040,16 +853,12 @@ include_once ROOT_PATH.'system/includes/head.php';
 <div id="page-wrapper"><div class="container-fluid">
   <div class="row"><div class="col-lg-12"><h1 class="page-header"><?= APP_NAME ?></h1></div></div>
 
-  <section class="bpm"><div class="container">
+  <session class="bpm"><div class="container">
     <header class="toolbar">
       <h1>Ativos — <?= $id>0 ? 'Editar' : 'Cadastro' ?></h1>
       <div class="actions">
         <a class="btn" href="ativos-listar.php">Listar ativos</a>
         <a class="btn" href="ativos-importar.php">Importar CSV</a>
-        <?php if ($id > 0): ?>
-        <a class="btn" href="<?= BASE_URL ?>/modules/gestao_ativos/ativos-vida.php?id=<?= (int)$id ?>">Vida do ativo</a>
-        <a class="btn" href="<?= BASE_URL ?>/modules/gestao_ativos/manutencoes-listar.php?ativo_id=<?= (int)$id ?>">Manutenções</a>
-        <?php endif; ?>
       </div>
     </header>
 
@@ -1063,7 +872,7 @@ include_once ROOT_PATH.'system/includes/head.php';
       <p class="subtitle">Identificação</p>
 
       <div class="grid cols-4">
-        <div>
+              <div>
           <label>Local *</label>
           <select name="local_id" id="local_id" required>
             <option value="">—</option>
@@ -1073,25 +882,20 @@ include_once ROOT_PATH.'system/includes/head.php';
           </select>
         </div>
 
-        <div>
-          <label>Setor/Subsetor</label>
+<div>
+  <label>Setor/Subsetor</label>
 
-          <!-- valor final selecionado (leaf) -->
-          <input type="hidden" name="sector_item_id" id="sector_item_id" value="<?= h($rec['sector_item_id']) ?>">
+  <input type="hidden" name="sector_item_id" id="sector_item_id" value="<?= h($rec['sector_item_id']) ?>">
 
-          <!-- aqui o JS vai montar os <select> em cascata -->
-          <div id="sector_cascade"></div>
+  <div id="sector_cascade" class="stack" style="gap:8px;"></div>
 
-          <?php if(!($listIdSector && $itSector)): ?>
-            <span class="hint">Lista “Setor” não encontrada (slug: <?= h($SLUG_SECTOR) ?>).</span>
-          <?php endif; ?>
-
-          <?php if(!$col_sector_item): ?>
-            <span class="hint">Coluna moz_ativo.sector_item_id não existe (não vai salvar).</span>
-          <?php endif; ?>
-        </div>
+  <?php if(!($col_sector_item && $listIdSector)): ?>
+    <span class="hint">Setor/Subsetor desabilitado: coluna em moz_ativo ou lista (slug: <?= h($SLUG_SECTOR) ?>) não encontrada.</span>
+  <?php endif; ?>
+</div>
 
 
+                 
         <!-- 1) NOME (lista + Digitar) -->
         <div>
           <label>Nome *</label>
@@ -1117,7 +921,7 @@ include_once ROOT_PATH.'system/includes/head.php';
               Digitar
             </label>
             <span class="hint">Marque para digitar o “Nome do Ativo”.</span>
-          </div>
+          </div> 
 
           <?php if(!($listIdNome && $itNome)): ?>
             <span class="hint">Lista “Nome do Ativo” não encontrada (slug: <?= h($SLUG_NOME_ATIVO) ?>). Campo ficará como digitação.</span>
@@ -1133,9 +937,11 @@ include_once ROOT_PATH.'system/includes/head.php';
             <?php endforeach; ?>
           </select>
         </div>
+
       </div>
 
       <div class="grid cols-4">
+
         <div>
           <label>Modelo</label>
           <select name="modelo_id" id="modelo_id">
@@ -1152,7 +958,7 @@ include_once ROOT_PATH.'system/includes/head.php';
         <!-- 2) Status operacional (ga-list op_status) -->
         <div>
           <label>Status operacional *</label>
-          <select name="status_id" id="status_id" required>
+          <select name="status_id" id="status_id" required <?= ($listIdStatus && $itStatus) ? '' : '' ?>>
             <option value="">—</option>
             <?php foreach($itStatus as $it): ?>
               <option value="<?= (int)$it['id'] ?>" <?= ((int)$rec['status_id']===(int)$it['id'])?'selected':'' ?>>
@@ -1166,7 +972,9 @@ include_once ROOT_PATH.'system/includes/head.php';
         </div>
       </div>
 
+      <!-- 5) Inserir após Local: SETOR/SUBSETOR (ga-list sector) -->
       <div class="grid cols-4">
+      <!-- Incluir depois -->
         <div>
           <label>Ativo?</label>
           <select name="ativo" <?= $hasAtivoFlag?'':'disabled' ?>>
@@ -1199,23 +1007,17 @@ include_once ROOT_PATH.'system/includes/head.php';
         </div>
 
         <div id="wrap_categoria" style="display:none;">
-          <label>Categoria de Ativos</label>
+<label>Categoria de Ativos</label>
 
-          <!-- valor final selecionado (leaf) -->
-          <input type="hidden" name="categoria_item_id" id="categoria_item_id" value="<?= h($rec['categoria_item_id']) ?>">
+<input type="hidden" name="categoria_item_id" id="categoria_item_id" value="<?= h($rec['categoria_item_id']) ?>">
 
-          <!-- aqui o JS vai montar os <select> em cascata -->
-          <div id="cat_cascade"></div>
+<div id="cat_cascade" class="stack" style="gap:8px;"></div>
 
-          <?php if(!($listIdCat && $itCat)): ?>
-            <span class="hint">Lista “Categoria de Ativos” não encontrada (slug: <?= h($SLUG_CAT_ATIVOS) ?>).</span>
-          <?php endif; ?>
+<?php if(!($col_cat_item && $listIdCat)): ?>
+  <span class="hint">Categoria desabilitada: coluna em moz_ativo ou lista (slug: <?= h($SLUG_CAT_ATIVOS) ?>) não encontrada.</span>
+<?php endif; ?>
 
-          <?php if(!$col_cat_item): ?>
-            <span class="hint">Coluna moz_ativo.categoria_item_id não existe (não vai salvar).</span>
-          <?php endif; ?>
         </div>
-
 
         <div></div><div></div>
       </div>
@@ -1262,6 +1064,7 @@ include_once ROOT_PATH.'system/includes/head.php';
         <div><label>Nota fiscal</label><input type="text" name="nf_numero" value="<?= h($rec['nf_numero']) ?>" placeholder="NF-e" <?= $hasNF?'':'disabled' ?>/></div>
         <div><label>Data de compra</label><input type="date" name="data_compra" id="data_compra" value="<?= h($rec['data_compra']) ?>"/></div>
 
+        <!-- 7) Garantia (meses) + alerta expirada -->
         <?php
           $garantiaInfo = '';
           $garantiaExpirada = false;
@@ -1288,7 +1091,7 @@ include_once ROOT_PATH.'system/includes/head.php';
 
       <div class="grid cols-3">
         <div><label>Valor de compra</label><input type="number" step="0.01" min="0" name="custo_aquisicao" value="<?= h($rec['custo_aquisicao']) ?>" placeholder="0,00" <?= $hasCusto?'':'disabled' ?>/></div>
-        <div><label>Depreciação (meses)</label><input type="number" min="0" name="depreciacao_meses" value="<?= $hasDeprec ? h($rec['depreciacao_meses']) : '' ?>" placeholder="36" <?= $hasDeprec?'':'disabled' ?>/></div>
+        <div><label>Depreciação (meses)</label><input type="number" min="0" name="depreciacao_meses" value <?= $hasDeprec?('="'.h($rec['depreciacao_meses']).'"'):'=""' ?> placeholder="36" <?= $hasDeprec?'':'disabled' ?>/></div>
         <div><label>Centro de custo</label><input type="text" name="centro_custo" value="<?= h($rec['centro_custo']) ?>" placeholder="Opcional" <?= $hasCentroCusto?'':'disabled' ?>/></div>
       </div>
 
@@ -1366,7 +1169,7 @@ include_once ROOT_PATH.'system/includes/head.php';
           <div class="grid cols-4" style="align-items:end">
             <div>
               <label>Tipo</label>
-              <select name="rel_tipo[]">
+              <select name="rel_tipo[]" <?= ($listIdLink && $itLink) ? '' : '' ?>>
                 <option value="">—</option>
                 <?php foreach($itLink as $it): ?>
                   <?php $val = (string)($it['name'] ?? $it['label']); ?>
@@ -1387,7 +1190,7 @@ include_once ROOT_PATH.'system/includes/head.php';
           <div class="grid cols-4" style="align-items:end">
             <div>
               <label>Tipo</label>
-              <select name="rel_tipo[]">
+              <select name="rel_tipo[]" <?= ($listIdLink && $itLink) ? '' : '' ?>>
                 <option value="">—</option>
                 <?php foreach($itLink as $it): ?>
                   <?php $val = (string)($it['name'] ?? $it['label']); ?>
@@ -1506,11 +1309,10 @@ include_once ROOT_PATH.'system/includes/head.php';
     </form>
 
     <div class="card"><p class="hint">Os campos se adaptam conforme o seu schema (detecção de colunas). “Próxima manutenção” é recalculada por trigger ou na aplicação.</p></div>
-  </div></section>
+  </div></session>
 </div></div>
 
 <?php include_once ROOT_PATH.'system/includes/code_footer.php'; ?>
-
 <script>
   // 1) Nome: alterna select <-> input (Digitar)
   const chkNome = document.getElementById('nome_digit');
@@ -1521,6 +1323,7 @@ include_once ROOT_PATH.'system/includes/head.php';
     if (wrapNomeSelect) wrapNomeSelect.style.display = dig ? 'none' : '';
     if (wrapNomeTxt) wrapNomeTxt.style.display = dig ? '' : 'none';
 
+    // se a lista não existir, força digitação
     const sel = document.getElementById('nome_item_id');
     if (sel && sel.disabled) {
       if (wrapNomeSelect) wrapNomeSelect.style.display = 'none';
@@ -1530,7 +1333,7 @@ include_once ROOT_PATH.'system/includes/head.php';
   chkNome?.addEventListener('change', syncNomeUI);
   syncNomeUI();
 
-  // 3) Categoria: checkbox mostra/esconde
+  // 3) Categoria: checkbox mostra/esconde select
   const chkCat = document.getElementById('informar_categoria');
   const wrapCat = document.getElementById('wrap_categoria');
   function syncCatUI(){
@@ -1540,7 +1343,7 @@ include_once ROOT_PATH.'system/includes/head.php';
   chkCat?.addEventListener('change', syncCatUI);
   syncCatUI();
 
-  // 4) Depósito: checkbox mostra/esconde
+  // 4) Depósito: checkbox mostra/esconde select
   const chkDep = document.getElementById('informar_deposito');
   const wrapDep = document.getElementById('wrap_deposito');
   function syncDepUI(){
@@ -1554,22 +1357,131 @@ include_once ROOT_PATH.'system/includes/head.php';
   const marcaSel=document.getElementById('marca_id');
   const modeloSel=document.getElementById('modelo_id');
   marcaSel?.addEventListener('change', async ()=>{
-    if(!modeloSel) return;
     modeloSel.innerHTML='<option value="">—</option>';
     if(!marcaSel.value) return;
     const r=await fetch('?ajax=modelos&marca_id='+encodeURIComponent(marcaSel.value));
     const j=await r.json();
-    (j||[]).forEach(m=>{
+    j.forEach(m=>{
       const o=document.createElement('option'); o.value=m.id; o.textContent=m.nome; modeloSel.appendChild(o);
     });
   });
 
-  // vínculos add
+  /* ================== AJAX: ga_list children (cascata) ================== */
+if (isset($_GET['ajax']) && $_GET['ajax']==='ga_children') {
+  header('Content-Type: application/json; charset=utf-8');
+
+  if (!$hasGaList) { echo json_encode([]); exit; }
+
+  $slug = preg_replace('/[^a-z0-9_\-]/i','', $_GET['slug'] ?? '');
+  $parent_id = ($_GET['parent_id'] ?? '') === '' ? 0 : (int)$_GET['parent_id'];
+
+  $list_id = ga_list_id($dbc, $slug);
+  if (!$list_id) { echo json_encode([]); exit; }
+
+  $hasActive = has_col($dbc,'ga_list_item','active');
+
+  // puxa itens da lista inteira (pra montar labels com path)
+  $sqlAll = "SELECT id, parent_id, name, sort_order".($hasActive?", active":"")."
+              FROM ga_list_item
+             WHERE list_id=? ".($hasActive?"AND active=1":"")."
+             ORDER BY sort_order ASC, name ASC";
+  $st = $dbc->prepare($sqlAll);
+  $st->bind_param('i', $list_id);
+  $st->execute();
+  $rs = $st->get_result();
+
+  $items = [];
+  $children = [];
+  while($r=$rs->fetch_assoc()){
+    $id = (int)$r['id'];
+    $pid = ($r['parent_id']===null ? 0 : (int)$r['parent_id']);
+    $items[$id] = [
+      'id'=>$id,
+      'parent_id'=>$pid,
+      'name'=>$r['name'],
+      'sort_order'=>(int)($r['sort_order'] ?? 0),
+    ];
+    if (!isset($children[$pid])) $children[$pid]=[];
+    $children[$pid][]=$id;
+  }
+  $st->close();
+
+  // ordena filhos por sort_order + name
+  foreach($children as $pid=>$arr){
+    usort($arr, function($a,$b) use ($items){
+      $oa = $items[$a]['sort_order'] ?? 0;
+      $ob = $items[$b]['sort_order'] ?? 0;
+      if ($oa !== $ob) return $oa <=> $ob;
+      return strcasecmp($items[$a]['name'] ?? '', $items[$b]['name'] ?? '');
+    });
+    $children[$pid]=$arr;
+  }
+
+  // monta label "Pai - Filho - Neto"
+  $mkLabel = function($id) use (&$mkLabel, $items){
+    if (!isset($items[$id])) return '';
+    $name = $items[$id]['name'] ?? '';
+    $pid  = (int)($items[$id]['parent_id'] ?? 0);
+    if ($pid<=0) return $name;
+    $p = $mkLabel($pid);
+    return $p ? ($p.' - '.$name) : $name;
+  };
+
+  $out = [];
+  foreach(($children[$parent_id] ?? []) as $cid){
+    $out[] = ['id'=>$cid, 'label'=>$mkLabel($cid)];
+  }
+
+  echo json_encode($out); exit;
+}
+
+/* ================== AJAX: ga_list path (root -> leaf) ================== */
+if (isset($_GET['ajax']) && $_GET['ajax']==='ga_path') {
+  header('Content-Type: application/json; charset=utf-8');
+
+  if (!$hasGaList) { echo json_encode([]); exit; }
+
+  $slug = preg_replace('/[^a-z0-9_\-]/i','', $_GET['slug'] ?? '');
+  $id   = (int)($_GET['id'] ?? 0);
+
+  $list_id = ga_list_id($dbc, $slug);
+  if (!$list_id || $id<=0) { echo json_encode([]); exit; }
+
+  $hasActive = has_col($dbc,'ga_list_item','active');
+  $sqlAll = "SELECT id, parent_id".($hasActive?", active":"")."
+              FROM ga_list_item
+             WHERE list_id=? ".($hasActive?"AND active=1":"")."";
+  $st = $dbc->prepare($sqlAll);
+  $st->bind_param('i', $list_id);
+  $st->execute();
+  $rs = $st->get_result();
+
+  $parentOf = [];
+  while($r=$rs->fetch_assoc()){
+    $iid = (int)$r['id'];
+    $pid = ($r['parent_id']===null ? 0 : (int)$r['parent_id']);
+    $parentOf[$iid]=$pid;
+  }
+  $st->close();
+
+  // sobe até raiz
+  $path = [];
+  $cur = $id;
+  $guard = 0;
+  while($cur>0 && isset($parentOf[$cur]) && $guard < 50){
+    array_unshift($path, $cur);
+    $cur = (int)$parentOf[$cur];
+    $guard++;
+  }
+  echo json_encode($path); exit;
+}
+
+// vínculos add
   document.getElementById('add-attach')?.addEventListener('click', ()=>{
     const wrap=document.getElementById('attach-list');
-    if(!wrap) return;
     const el=document.createElement('div'); el.className='grid cols-4'; el.style.alignItems='end';
 
+    // monta opções do select com o que já está renderizado no 1º select (se existir)
     let optHtml = '<option value="">—</option>';
     const anySel = document.querySelector('#attach-list select[name="rel_tipo[]"]');
     if (anySel) optHtml = anySel.innerHTML;
@@ -1599,7 +1511,7 @@ include_once ROOT_PATH.'system/includes/head.php';
   }
   per?.addEventListener('change', calcProx); ult?.addEventListener('change', calcProx); calcProx();
 
-  // Depósitos: carrega quando muda Local — só se checkbox marcado
+  // Depósitos: carrega quando muda Local (mantido) — só atualiza se o wrap estiver visível/checkbox marcado
   const selLocal = document.getElementById('local_id');
   const selDepos = document.getElementById('deposito_id');
   async function carregarDepositosPorEmpresa(empId){
@@ -1608,7 +1520,7 @@ include_once ROOT_PATH.'system/includes/head.php';
     if(!empId){ return; }
     const r = await fetch('?ajax=depositos&empresa_id='+encodeURIComponent(empId));
     const j = await r.json();
-    (j||[]).forEach(d=>{
+    j.forEach(d=>{
       const o = document.createElement('option');
       o.value = d.id; o.textContent = d.nome;
       selDepos.appendChild(o);
@@ -1618,7 +1530,7 @@ include_once ROOT_PATH.'system/includes/head.php';
     if (chkDep && chkDep.checked) await carregarDepositosPorEmpresa(selLocal.value);
   });
 
-  // Autocomplete de ativos para "Ativos atrelados"
+  // Autocomplete de ativos para "Ativos atrelados" (mantido)
   const $buscaAtr  = document.getElementById('busca_atrelado');
   const $datalist  = document.getElementById('sug_ativos');
   const $listAtr   = document.getElementById('atrelados-list');
@@ -1635,7 +1547,6 @@ include_once ROOT_PATH.'system/includes/head.php';
   }
 
   async function carregaSugestoes(q) {
-    if (!$datalist) return;
     if (!q || q.length < 2) { $datalist.innerHTML=''; sugCache=[]; return; }
     const url = `?ajax=busca_ativos&q=${encodeURIComponent(q)}&idAtual=${encodeURIComponent(<?= (int)$id ?>)}`;
     const r = await fetch(url);
@@ -1652,12 +1563,10 @@ include_once ROOT_PATH.'system/includes/head.php';
   });
 
   function jaExisteAtrelado(id) {
-    if(!$listAtr) return false;
     return !!$listAtr.querySelector(`.chip[data-id="${id}"]`);
   }
 
   function addChip(id, label) {
-    if (!$listAtr) return;
     if (!id || jaExisteAtrelado(id)) return;
     const chip = document.createElement('div');
     chip.className = 'chip';
@@ -1671,7 +1580,7 @@ include_once ROOT_PATH.'system/includes/head.php';
   }
 
   function resolveEscolhaAtual() {
-    const val = ($buscaAtr?.value || '').trim();
+    const val = $buscaAtr.value.trim();
     const hit = sugCache.find(s => s.label === val);
     if (hit) return hit;
     const m = val.match(/^#?(\d+)\b/);
@@ -1683,13 +1592,12 @@ include_once ROOT_PATH.'system/includes/head.php';
     const esc = resolveEscolhaAtual();
     if (!esc) { alert('Selecione um item da lista ou informe o ID no formato #123.'); return; }
     addChip(esc.id, esc.label);
-    if ($buscaAtr) $buscaAtr.value = '';
-    if ($datalist) $datalist.innerHTML = '';
-    sugCache = [];
+    $buscaAtr.value = '';
+    $datalist.innerHTML = ''; sugCache = [];
   });
 
   $buscaAtr?.addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter') { e.preventDefault(); $btnAddAtr?.click(); }
+    if (e.key === 'Enter') { e.preventDefault(); $btnAddAtr.click(); }
   });
 </script>
 
@@ -1707,7 +1615,7 @@ include_once ROOT_PATH.'system/includes/head.php';
     return await r.json();
   }
 
-  function makeSelect(options, placeholder='— selecione —'){
+  function makeSelect(options, placeholder='—'){
     const sel = document.createElement('select');
     sel.innerHTML = `<option value="">${placeholder}</option>`;
     (options || []).forEach(o=>{
@@ -1724,55 +1632,129 @@ include_once ROOT_PATH.'system/includes/head.php';
     const hid = document.getElementById(hiddenId);
     if (!box || !hid) return;
 
-    box.innerHTML = '';
-    if (!enabled) return;
+    if (!enabled) {
+      box.innerHTML = '';
+      return;
+    }
 
     const selectedLeaf = parseInt(hid.value || '0', 10) || 0;
+
+    // pega caminho root->leaf (ids)
     const path = selectedLeaf ? await gaFetchPath(slug, selectedLeaf) : [];
 
-    async function buildFrom(parentId, levelIndex){
+    // limpa container
+    box.innerHTML = '';
+
+    // monta níveis dinamicamente
+    let parentId = 0;
+    let level = 0;
+
+    while(true){
       const opts = await gaFetchChildren(slug, parentId);
-      if (!opts || !opts.length) return;
+      if (!opts || opts.length === 0) break;
 
-      const sel = makeSelect(opts);
-      sel.dataset.level = String(levelIndex);
-      box.appendChild(sel);
+      const sel = makeSelect(opts, level===0 ? '— selecione —' : '— selecione —');
+      sel.dataset.level = String(level);
+      sel.dataset.parent = String(parentId);
 
-      const wanted = path[levelIndex] ? String(path[levelIndex]) : '';
+      // preseleciona se estiver no path
+      const wanted = path[level] ? String(path[level]) : '';
       if (wanted) sel.value = wanted;
 
+      box.appendChild(sel);
+
+      // handler: ao trocar, remove níveis abaixo, atualiza hidden com o leaf atual (o último select selecionado)
       sel.addEventListener('change', async ()=>{
+        // remove selects abaixo
         const lv = parseInt(sel.dataset.level,10);
         [...box.querySelectorAll('select')].forEach(s=>{
-          if (parseInt(s.dataset.level,10) > lv) s.remove();
+          const slv = parseInt(s.dataset.level,10);
+          if (slv > lv) s.remove();
         });
 
-        // atualiza hidden com o último selecionado válido
         const v = parseInt(sel.value || '0',10) || 0;
+
+        // se não selecionou, o leaf vira o último selecionado acima (ou 0)
         if (!v) {
+          const sels = [...box.querySelectorAll('select')];
           let leaf = 0;
-          [...box.querySelectorAll('select')].forEach(s=>{
-            const vv = parseInt(s.value || '0',10) || 0;
+          sels.forEach(s=>{
+            const vv = parseInt(s.value||'0',10)||0;
             if (vv) leaf = vv;
           });
           hid.value = leaf ? String(leaf) : '';
           return;
         }
 
+        // atualiza leaf provisoriamente
         hid.value = String(v);
-        await buildFrom(v, lv+1);
+
+        // tenta carregar próximo nível (filhos do selecionado)
+        const next = await gaFetchChildren(slug, v);
+        if (next && next.length){
+          const nextSel = makeSelect(next, '— selecione —');
+          nextSel.dataset.level = String(lv+1);
+          nextSel.dataset.parent = String(v);
+          box.appendChild(nextSel);
+
+          // dispara o mesmo comportamento (recursivo “manual”)
+          nextSel.addEventListener('change', async ()=> {
+            // remove abaixo do novo
+            const nlv = parseInt(nextSel.dataset.level,10);
+            [...box.querySelectorAll('select')].forEach(s=>{
+              const slv = parseInt(s.dataset.level,10);
+              if (slv > nlv) s.remove();
+            });
+
+            const nv = parseInt(nextSel.value || '0',10) || 0;
+            if (!nv) {
+              hid.value = String(v);
+              return;
+            }
+            hid.value = String(nv);
+
+            // se esse também tiver filhos, cria outro nível
+            const more = await gaFetchChildren(slug, nv);
+            if (more && more.length){
+              // cria o próximo select “na sequência” chamando artificialmente change
+              const moreSel = makeSelect(more, '— selecione —');
+              moreSel.dataset.level = String(nlv+1);
+              moreSel.dataset.parent = String(nv);
+              box.appendChild(moreSel);
+
+              // encadeia (deixa para o usuário selecionar)
+              moreSel.addEventListener('change', async ()=> {
+                const mlv = parseInt(moreSel.dataset.level,10);
+                [...box.querySelectorAll('select')].forEach(s=>{
+                  const slv = parseInt(s.dataset.level,10);
+                  if (slv > mlv) s.remove();
+                });
+                const mv = parseInt(moreSel.value || '0',10) || 0;
+                hid.value = mv ? String(mv) : String(nv);
+
+                const last = await gaFetchChildren(slug, mv);
+                if (last && last.length){
+                  const lastSel = makeSelect(last, '— selecione —');
+                  lastSel.dataset.level = String(mlv+1);
+                  lastSel.dataset.parent = String(mv);
+                  box.appendChild(lastSel);
+                }
+              });
+            }
+          });
+        }
       });
 
-      // se preselecionado, tenta descer
-      const chosen = parseInt(sel.value || '0',10) || 0;
-      if (chosen) {
-        hid.value = String(chosen);
-        await buildFrom(chosen, levelIndex+1);
-      }
+      // se tem path neste nível, desce; senão para com um nível (sem auto-add)
+      const chosen = path[level] ? path[level] : 0;
+      if (!chosen) break;
+
+      parentId = chosen;
+      level++;
     }
 
+    // ao final, garante hidden = leaf
     if (selectedLeaf) hid.value = String(selectedLeaf);
-    await buildFrom(0, 0);
   }
 
   // init Setor/Subsetor
@@ -1780,7 +1762,7 @@ include_once ROOT_PATH.'system/includes/head.php';
     slug: 'sector',
     containerId: 'sector_cascade',
     hiddenId: 'sector_item_id',
-    enabled: <?= ($listIdSector ? 'true' : 'false') ?>
+    enabled: <?= ($col_sector_item && $listIdSector) ? 'true' : 'false' ?>
   });
 
   // init Categoria de Ativos (lista)
@@ -1788,8 +1770,10 @@ include_once ROOT_PATH.'system/includes/head.php';
     slug: 'asset_category',
     containerId: 'cat_cascade',
     hiddenId: 'categoria_item_id',
-    enabled: <?= ($listIdCat ? 'true' : 'false') ?>
+    enabled: <?= ($col_cat_item && $listIdCat) ? 'true' : 'false' ?>
   });
 </script>
 
+
 <?php include_once ROOT_PATH.'system/includes/footer.php'; ?>
+ 

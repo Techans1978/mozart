@@ -186,11 +186,16 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $sql="UPDATE moz_fornecedor SET razao_social=?, nome_fantasia=?, nome=?, cnpj=?, ie=?, im=?, porte=?, matriz_filial=?, data_abertura=?, natureza_juridica=?, cnae_principal=?, cep=?, logradouro=?, numero=?, complemento=?, bairro=?, municipio=?, uf=?, email_geral=?, telefone_geral=?"
             .($fornHasAtivo?", ativo=?":"")
             ." WHERE id=?";
-        $types="ssssssssssssssssssssi"; // 21 s/i antes do ativo/id
-        $args=[$razao,$nome,$nome,$cnpj,$ie,$im,$porte,$mf,$abertura,$natureza,$cnae,$cep,$logradouro,$numero,$complemento,$bairro,$municipio,$uf,$email_geral,$tel_geral];
-        if ($fornHasAtivo){ $types.="i"; $args[]=$ativo; }
-        $types.="i"; $args[]=$id;
-        $st=$dbc->prepare($sql); $st->bind_param($types, ...$args); $st->execute(); $st->close();
+        $types = "ssssssssssssssssssss"; // 20 strings (até telefone_geral)
+        $args  = [$razao,$nome,$nome,$cnpj,$ie,$im,$porte,$mf,$abertura,$natureza,$cnae,$cep,$logradouro,$numero,$complemento,$bairro,$municipio,$uf,$email_geral,$tel_geral];
+
+        if ($fornHasAtivo){ $types .= "i"; $args[] = $ativo; } // +1 int (ativo)
+        $types .= "i"; $args[] = $id;                          // +1 int (id)
+
+        $st = $dbc->prepare($sql);
+        $st->bind_param($types, ...$args);
+        $st->execute();
+        $st->close();
 
         // Contatos: limpa e reinsere
         $dbc->query("DELETE FROM moz_fornecedor_contato WHERE fornecedor_id=".(int)$id);

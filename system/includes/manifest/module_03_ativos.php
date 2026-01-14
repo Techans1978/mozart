@@ -112,7 +112,7 @@ return [
                     ],
                     [
                         'label'    => 'Listas',
-                        'url'      => BASE_URL . '/modules/gestao_ativos/listas-dropdowns-form.php',
+                        'url'      => BASE_URL . '/modules/gestao_ativos/listas/listas-index.php',
                         'requires' => ['ativos:listas:manage'],
                     ],
                     [
