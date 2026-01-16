@@ -46,8 +46,29 @@ if ($res = $conn->query($sql)) {
   while ($r = $res->fetch_assoc()) $grupos_pai[] = $r;
 }
 
-// --- repopular em caso de erro (se você redirecionar com mensagens, ajuste conforme usar) ---
+// --- modo edição ---
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+// --- repopular em caso de postback ---
 $old = $_POST ?? [];
+
+// Se NÃO é postback e tem id, carrega do banco
+if (empty($old) && $id > 0) {
+  $stmt = $conn->prepare("SELECT id, nome, codigo, parent_id, ativo, obs FROM grupos WHERE id=? LIMIT 1");
+  $stmt->bind_param("i", $id);
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+
+  if ($row) {
+    $old = $row;
+    $old['id'] = (int)$row['id'];
+  } else {
+    $id = 0;
+  }
+}
+
+// NÃO sobrescreva $old aqui de novo
 
 include_once ROOT_PATH . '/system/includes/head.php';
 include_once ROOT_PATH . '/system/includes/navbar.php';
@@ -58,7 +79,7 @@ include_once ROOT_PATH . '/system/includes/navbar.php';
 
     <div class="row">
       <div class="col-lg-12">
-        <h2>Cadastrar Grupo</h2>
+        <h2><?= ($id>0 ? 'Editar Grupo' : 'Cadastrar Grupo') ?></h2>
 
         <!-- ALERTAS opcionais: se você passar via querystring tipo ?ok=1&msg=... -->
         <?php if (!empty($_GET['msg'])): ?>
@@ -68,6 +89,9 @@ include_once ROOT_PATH . '/system/includes/navbar.php';
         <?php endif; ?>
 
         <form method="post" action="<?= BASE_URL ?>/system/actions/grupos_save.php" onsubmit="return validarGrupo();">
+          <?php if ($id>0): ?>
+            <input type="hidden" name="id" value="<?= (int)$id ?>">
+          <?php endif; ?>
           <div class="form-group">
             <label for="nome">Nome do Grupo:</label>
             <input type="text" class="form-control" id="nome" name="nome"
@@ -87,9 +111,13 @@ include_once ROOT_PATH . '/system/includes/navbar.php';
             <select id="parent_id" name="parent_id" class="form-control">
               <option value="">-- nenhum (raiz) --</option>
               <?php
-              $selParent = isset($old['parent_id']) ? (int)$old['parent_id'] : 0;
+              $selParent = ($old['parent_id'] ?? null);
+              $selParent = ($selParent === null || $selParent === '' ? 0 : (int)$selParent);
+
               foreach ($grupos_pai as $g):
-                $sel = ((int)$g['id'] === $selParent) ? 'selected' : '';
+                $gid = (int)$g['id'];
+                if ($id>0 && $gid === (int)$id) continue; // evita pai = ele mesmo
+                $sel = ($gid === $selParent) ? 'selected' : '';
               ?>
                 <option value="<?= (int)$g['id'] ?>" <?= $sel ?>>
                   <?= htmlspecialchars($g['label']) ?>

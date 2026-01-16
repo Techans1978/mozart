@@ -67,9 +67,6 @@ function mozart_acesso_negado() {
 // 5) Primeiro: garante que o usuário está logado
 proteger_pagina();
 
-// 5) Primeiro: garante que o usuário está logado
-proteger_pagina();
-
 // SUPERADMIN DE HOMOLOG (apenas enquanto estamos desenvolvendo)
 // Se ainda não houver mapa de permissões na sessão, libera tudo.
 if (!isset($_SESSION['user_perms_map'])) {
@@ -117,3 +114,5 @@ function mozart_get_current_user_capabilities(): array {
     // ou apenas ['front:*'] etc.
     return [];
 }
+
+require_once ROOT_PATH . '/system/lib/auditoria.php';

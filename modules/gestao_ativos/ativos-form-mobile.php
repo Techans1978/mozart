@@ -1,5 +1,6 @@
 <?php
-// public/modules/gestao_ativos/ativos-form.php
+// public/modules/gestao_ativos/ativos-form-mobile.php
+// Versão mobile (1 coluna + seções colapsáveis). Backend/validações iguais ao ativos-form.php.
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -19,32 +20,25 @@ function h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
 /**
  * Monta o href certo para anexos salvos como:
- * - "system/updown/download.php?id=123" (rota de download)
- * - "alguma/pasta/arquivo.pdf" (caminho relativo)
- * - "https://..." (url absoluta)
+ * - "system/updown/download.php?id=123"
+ * - "alguma/pasta/arquivo.pdf"
+ * - "https://..."
  */
 function anexo_href(?string $p): string {
   $p = trim((string)$p);
   if ($p === '') return '#';
-
   if (preg_match('#^https?://#i', $p)) return $p;
   if ($p[0] === '/') $p = ltrim($p, '/');
-
   return rtrim(BASE_URL, '/') . '/' . $p;
 }
 
 /**
  * Nome amigável para mostrar na lista
- * Se for download.php?id=..., mostra "Arquivo #ID"
- * Senão, mostra o nome do arquivo (basename)
  */
 function anexo_label(?string $p): string {
   $p = trim((string)$p);
   if ($p === '') return 'arquivo';
-
-  if (preg_match('#download\.php\?id=(\d+)#i', $p, $m)) {
-    return 'Arquivo #' . $m[1];
-  }
+  if (preg_match('#download\.php\?id=(\d+)#i', $p, $m)) return 'Arquivo #' . $m[1];
   return basename($p);
 }
 
@@ -54,16 +48,10 @@ function has_col(mysqli $db, $t, $c) {
   $r = $db->query("SHOW COLUMNS FROM `$rt` LIKE '$rc'");
   return $r && $r->num_rows > 0;
 }
-
 function table_exists(mysqli $db, $t) {
   $rt = $db->real_escape_string($t);
   $r = $db->query("SHOW TABLES LIKE '$rt'");
   return $r && $r->num_rows > 0;
-}
-
-function ensure_dir($abs) {
-  if (!is_dir($abs)) @mkdir($abs, 0775, true);
-  return is_dir($abs) && is_writable($abs);
 }
 
 function storage_rel_join(...$parts) {
@@ -75,19 +63,16 @@ function storage_rel_join(...$parts) {
   }
   return implode('/', $p);
 }
-
 function storage_safe_name(string $name): string {
   $name = preg_replace('/[^\pL\pN\.\-\_\s]+/u', '_', $name);
   $name = trim(preg_replace('/\s+/', ' ', $name));
   if ($name === '' || $name === '.' || $name === '..') $name = 'arquivo';
   return $name;
 }
-
 function storage_mkdir(string $absDir): bool {
   if (!is_dir($absDir)) @mkdir($absDir, 0750, true);
   return is_dir($absDir) && is_writable($absDir);
 }
-
 function storage_detect_mime(string $tmpPath, string $fallbackExt=''): string {
   $mime = '';
   if (function_exists('finfo_open')) {
@@ -116,6 +101,18 @@ function storage_detect_mime(string $tmpPath, string $fallbackExt=''): string {
     'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   ];
   return $map[$fallbackExt] ?? 'application/octet-stream';
+}
+
+/**
+ * bind_param com array dinâmico (precisa passar por referência)
+ */
+function stmt_bind_params(mysqli_stmt $stmt, string $types, array $params): void {
+  $refs = [];
+  foreach ($params as $k => $v) $refs[$k] = &$params[$k];
+  array_unshift($refs, $types);
+  if (!call_user_func_array([$stmt, 'bind_param'], $refs)) {
+    throw new Exception('Falha no bind_param.');
+  }
 }
 
 /**
@@ -149,9 +146,7 @@ function storage_save_upload(mysqli $dbc, string $module, int $entityId, array $
   $storedName = $safeBase . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
   $absTarget  = $baseAbsDir . DIRECTORY_SEPARATOR . $storedName;
 
-  if (!@move_uploaded_file($tmpName, $absTarget)) {
-    throw new Exception('Não foi possível mover o arquivo.');
-  }
+  if (!@move_uploaded_file($tmpName, $absTarget)) throw new Exception('Não foi possível mover o arquivo.');
   @chmod($absTarget, 0640);
 
   $relPath     = storage_rel_join($baseRelDir, $storedName);
@@ -183,15 +178,8 @@ function storage_save_upload(mysqli $dbc, string $module, int $entityId, array $
     if (has_col($dbc, 'moz_file', 'mime'))          $add('mime', 's', $mime);
     if (has_col($dbc, 'moz_file', 'size_bytes'))    $add('size_bytes', 'i', $size);
 
-    // defaults “seguros”
-    if (has_col($dbc, 'moz_file', 'is_deleted')) {
-      $cols[] = 'is_deleted';
-      $vals[] = '0';
-    }
-    if (has_col($dbc, 'moz_file', 'created_at')) {
-      $cols[] = 'created_at';
-      $vals[] = 'NOW()';
-    }
+    if (has_col($dbc, 'moz_file', 'is_deleted')) { $cols[] = 'is_deleted'; $vals[] = '0'; }
+    if (has_col($dbc, 'moz_file', 'created_at')) { $cols[] = 'created_at'; $vals[] = 'NOW()'; }
 
     if ($cols) {
       $sql = "INSERT INTO moz_file (" . implode(',', $cols) . ") VALUES (" . implode(',', $vals) . ")";
@@ -200,8 +188,6 @@ function storage_save_upload(mysqli $dbc, string $module, int $entityId, array $
       $st->execute();
       $fileId = (int)$st->insert_id;
       $st->close();
-
-      // URL central
       if ($fileId > 0) $downloadUrl = 'system/updown/download.php?id=' . $fileId;
     }
   }
@@ -218,26 +204,11 @@ function storage_save_upload(mysqli $dbc, string $module, int $entityId, array $
   ];
 }
 
-/**
- * bind_param com array dinâmico (precisa passar por referência)
- */
-function stmt_bind_params(mysqli_stmt $stmt, string $types, array $params): void {
-  $refs = [];
-  foreach ($params as $k => $v) $refs[$k] = &$params[$k];
-  array_unshift($refs, $types);
-  if (!call_user_func_array([$stmt, 'bind_param'], $refs)) {
-    throw new Exception('Falha no bind_param.');
-  }
-}
-
+/* ================== CSRF ================== */
 if (empty($_SESSION['csrf_ativo'])) $_SESSION['csrf_ativo'] = bin2hex(random_bytes(16));
 $csrf = $_SESSION['csrf_ativo'];
 
-/* ================== LISTAS (ga_list / ga_list_item) ==================
-Obs.: Atenção as listas ga-list quando tiver subcategorias em todos deve apresentar
-"Pai - Filho - Neto" e assim por diante.
-========================================================== */
-
+/* ================== LISTAS (ga_list / ga_list_item) ================== */
 $hasGaList = table_exists($dbc, 'ga_list') && table_exists($dbc, 'ga_list_item');
 
 // Slugs conforme seu checklist:
@@ -344,33 +315,23 @@ $hasCentroCusto   = has_col($dbc, 'moz_ativo', 'centro_custo');
 $hasAtivoFlag     = has_col($dbc, 'moz_ativo', 'ativo');
 $hasCreatedAt     = has_col($dbc, 'moz_ativo', 'created_at');
 
-// 3) Categoria lista — coluna opcional
 $col_cat_item     = has_col($dbc, 'moz_ativo', 'categoria_item_id');
-
-// 5) SETOR/SUBSETOR (lista sector) — coluna opcional
 $col_sector_item  = has_col($dbc, 'moz_ativo', 'sector_item_id');
-
-// 6) Aquisição/Locação — coluna opcional
 $col_aq_loc       = has_col($dbc, 'moz_ativo', 'aquisicao_tipo');
 
-// 1) Nome (lista + digitar) — colunas opcionais
 $col_nome_item    = has_col($dbc, 'moz_ativo', 'nome_item_id');
 $col_nome_digit   = has_col($dbc, 'moz_ativo', 'nome_digit');
 $col_nome_txt     = has_col($dbc, 'moz_ativo', 'nome_txt');
 
-// 3) checkbox categoria — coluna opcional
 $col_inf_cat      = has_col($dbc, 'moz_ativo', 'informar_categoria');
-
-// 4) checkbox depósito — coluna opcional
 $col_inf_deposito = has_col($dbc, 'moz_ativo', 'informar_deposito');
 
 $hasAnexoTipoCol  = $hasAnexoTbl && has_col($dbc, 'moz_ativo_anexo', 'tipo');
 $hasAnexoPathCol  = $hasAnexoTbl && has_col($dbc, 'moz_ativo_anexo', 'path');
 
-/* ===== EMPRESAS (usadas em Local) ===== */
+/* ===== EMPRESAS (Local) ===== */
 $hasEmpresaTbl = table_exists($dbc, 'empresas');
 $empresas = [];
-
 if ($hasEmpresaTbl) {
   $sqlEmp = "
     SELECT
@@ -388,19 +349,16 @@ if ($hasEmpresaTbl) {
     " . (has_col($dbc, 'empresas', 'ativo') ? "WHERE ativo=1" : "WHERE 1=1") . "
     ORDER BY nome_empresarial ASC, nome_fantasia ASC, apelido ASC
   ";
-  if ($rs = $dbc->query($sqlEmp)) {
-    while ($r = $rs->fetch_assoc()) $empresas[] = $r;
-  }
+  if ($rs = $dbc->query($sqlEmp)) while ($r = $rs->fetch_assoc()) $empresas[] = $r;
 }
 
-/* ===== DEPOSITOS (tabela) ===== */
+/* ===== Depósitos ===== */
 $depositoTable  = table_exists($dbc, 'moz_deposito') ? 'moz_deposito' : (table_exists($dbc, 'depositos') ? 'depositos' : null);
 $hasDepositoTbl = $depositoTable !== null;
 $hasDepositoCol = has_col($dbc, 'moz_ativo', 'deposito_id');
 
 function carregarDepositos(mysqli $dbc, ?int $empresa_id, ?string $depositoTable) {
   if (!$depositoTable) return [];
-
   $out = [];
   $hasEmpCol = has_col($dbc, $depositoTable, 'empresa_id');
 
@@ -415,7 +373,6 @@ function carregarDepositos(mysqli $dbc, ?int $empresa_id, ?string $depositoTable
     $q = $dbc->query("SELECT id, nome FROM `$depositoTable` ORDER BY nome");
     if ($q) while ($x = $q->fetch_assoc()) $out[] = $x;
   }
-
   return $out;
 }
 
@@ -450,7 +407,6 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'busca_ativos') {
       $args[]  = $q;
     }
 
-    // evita sugerir ativos que já estejam como destino de depends (sem descrição) em outro item
     if (table_exists($dbc, 'moz_ativo_relacao')) {
       $where[] = "
         NOT EXISTS (
@@ -682,11 +638,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!hash_equals($csrf, $_POST['csrf'] ?? '')) die('CSRF inválido.');
 
   $id = (int)($_POST['id'] ?? 0);
-
-  // evita warnings/erro: $cat_id não definido no POST
   $cat_id = ($_POST['cat_id'] ?? '') === '' ? 0 : (int)$_POST['cat_id'];
 
-  // se não veio cat_id no POST (form não tem), e está editando, busca do banco
   if ($cat_id === 0 && $id > 0 && table_exists($dbc, 'moz_ativo') && has_col($dbc, 'moz_ativo', 'cat_id')) {
     $stCat = $dbc->prepare("SELECT cat_id FROM moz_ativo WHERE id=? LIMIT 1");
     $stCat->bind_param('i', $id);
@@ -706,28 +659,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nome = $nome_txt;
   } else {
     foreach ($itNome as $it) {
-      if ((int)$it['id'] === (int)$nome_item_id) {
-        $nome = (string)$it['label'];
-        break;
-      }
+      if ((int)$it['id'] === (int)$nome_item_id) { $nome = (string)$it['label']; break; }
     }
   }
 
-  // 2) Status Operacional (ga-list op_status) -> grava em status_id
+  // 2) Status Operacional
   $status_id = ($_POST['status_id'] ?? '') === '' ? 0 : (int)$_POST['status_id'];
 
-  // 3) Categoria (checkbox) -> coluna opcional categoria_item_id
+  // 3) Categoria (checkbox)
   $informar_categoria = isset($_POST['informar_categoria']) ? 1 : 0;
   $categoria_item_id  = ($informar_categoria && ($_POST['categoria_item_id'] ?? '') !== '') ? (int)$_POST['categoria_item_id'] : null;
 
-  // 4) Depósito (checkbox) -> usa deposito_id já existente
+  // 4) Depósito (checkbox)
   $informar_deposito = isset($_POST['informar_deposito']) ? 1 : 0;
 
   // Local (empresa) e Depósito
   $local_id    = ($_POST['local_id'] ?? '') === '' ? null : (int)$_POST['local_id'];
   $deposito_id = ($hasDepositoCol && $informar_deposito && ($_POST['deposito_id'] ?? '') !== '') ? (int)$_POST['deposito_id'] : null;
 
-  // 5) SETOR/SUBSETOR (ga-list sector) -> coluna opcional sector_item_id
+  // 5) SETOR/SUBSETOR
   $sector_item_id = ($_POST['sector_item_id'] ?? '') === '' ? null : (int)$_POST['sector_item_id'];
 
   // 6) Aquisição / Locação
@@ -735,11 +685,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($aquisicao_tipo !== 'Aquisicao' && $aquisicao_tipo !== 'Locacao') $aquisicao_tipo = '';
 
   // Mantidos
-  $marca_id = ($_POST['marca_id'] ?? '') === '' ? null : (int)$_POST['marca_id'];
+  $marca_id  = ($_POST['marca_id'] ?? '') === '' ? null : (int)$_POST['marca_id'];
   $modelo_id = ($_POST['modelo_id'] ?? '') === '' ? null : (int)$_POST['modelo_id'];
 
   $tag = trim($_POST['tag_patrimonial'] ?? '');
-  $tag = ($tag === '') ? null : $tag; // <-- evita '' (quebra UNIQUE)
+  $tag = ($tag === '') ? null : $tag;
 
   $serie = trim($_POST['numero_serie'] ?? '');
   $serie = ($serie === '') ? null : $serie;
@@ -748,26 +698,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   $fornecedor_id = $hasFornecedorTbl && ($_POST['fornecedor_id'] ?? '') !== '' ? (int)$_POST['fornecedor_id'] : null;
 
-  $nf_numero  = $hasNF ? trim($_POST['nf_numero'] ?? '') : null;
+  $nf_numero   = $hasNF ? trim($_POST['nf_numero'] ?? '') : null;
   $data_compra = ($_POST['data_compra'] ?? '') ?: null;
 
   // 7) Garantia (meses)
   $garantia_meses = (int)($_POST['garantia_meses'] ?? 0);
   if ($garantia_meses < 0) $garantia_meses = 0;
 
-  // compatibilidade: se não existir garantia_meses no BD e existir garantia_ate, calcula garantia_ate pelo data_compra
   $garantia_ate = null;
   if ($hasGarantiaMeses) {
-    // grava na coluna garantia_meses (mais abaixo)
+    // ok
   } elseif ($hasGarantiaAte) {
     if ($data_compra && $garantia_meses > 0) {
       try {
-        $dt = new DateTimeImmutable($data_compra);
+        $dt  = new DateTimeImmutable($data_compra);
         $dt2 = $dt->add(new DateInterval('P' . $garantia_meses . 'M'));
         $garantia_ate = $dt2->format('Y-m-d');
-      } catch (Exception $e) {
-        $garantia_ate = null;
-      }
+      } catch (Exception $e) { $garantia_ate = null; }
     } else {
       $garantia_ate = null;
     }
@@ -782,16 +729,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     : null;
 
   $centro_custo = $hasCentroCusto ? trim($_POST['centro_custo'] ?? '') : null;
-
-  $observacoes = trim($_POST['observacoes'] ?? '');
+  $observacoes  = trim($_POST['observacoes'] ?? '');
 
   // manutenção preventiva
   $per_txt = trim($_POST['manut_periodicidade'] ?? '');
-
-  // IMPORTANTE: nunca deixar NULL (coluna no banco é NOT NULL)
   $man_unid = 'meses';
   $man_qtd  = 0;
-
   if ($per_txt && preg_match('/^(\d+)([dm])$/', $per_txt, $m)) {
     $man_qtd  = (int)$m[1];
     $man_unid = ($m[2] === 'd') ? 'dias' : 'meses';
@@ -801,23 +744,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $man_alertar = $hasManutAlertar ? (int)($_POST['manut_alertar'] ?? ($man_qtd > 0 ? 1 : 0)) : null;
 
   // validações mínimas
-  if ($nome === '')      $err = 'Informe o nome do ativo.';
-  if (!$status_id)       $err = $err ?: 'Informe o status operacional.';
-  if (!$local_id)        $err = $err ?: 'Informe o local.';
+  if ($nome === '') $err = 'Informe o nome do ativo.';
+  if (!$status_id)  $err = $err ?: 'Informe o status operacional.';
+  if (!$local_id)   $err = $err ?: 'Informe o local.';
 
-  // uploads (NOVO: fora do public)
+  // uploads (armazenar refs primeiro)
   $photos_paths  = [];
   $contrato_path = null;
   $outros_paths  = [];
 
-  // IMPORTANTE: para INSERT, você precisa ter $id antes de salvar anexos.
-  // Então: aqui a gente só valida/segura os uploads em arrays temporários.
-  // E só faz storage_save_upload DEPOIS que $id existir.
   $uploads_fotos   = [];
   $uploads_outros  = [];
   $upload_contrato = null;
 
-  // Fotos (valida e guarda referência do $_FILES)
   if (!$err && !empty($_FILES['fotos']) && is_array($_FILES['fotos']['name'])) {
     for ($i = 0; $i < count($_FILES['fotos']['name']); $i++) {
       if (($_FILES['fotos']['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) continue;
@@ -831,12 +770,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
-  // Contrato PDF
   if (!$err && !empty($_FILES['contrato_pdf']) && ($_FILES['contrato_pdf']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
     $upload_contrato = $_FILES['contrato_pdf'];
   }
 
-  // Outros (valida e guarda referência do $_FILES)
   if (!$err && !empty($_FILES['outros']) && is_array($_FILES['outros']['name'])) {
     for ($i = 0; $i < count($_FILES['outros']['name']); $i++) {
       if (($_FILES['outros']['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) continue;
@@ -868,7 +805,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     'centro_custo'     => $centro_custo,
     'observacoes'      => $observacoes,
 
-    // flags/ga-list
     'nome_digit'         => $nome_digit,
     'nome_item_id'       => $nome_item_id,
     'nome_txt'           => $nome_txt,
@@ -879,13 +815,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     'sector_item_id'     => $sector_item_id,
     'aquisicao_tipo'     => $aquisicao_tipo,
 
-    // manutenção
     'manut_unid'     => $man_unid,
     'manut_qtd'      => $man_qtd,
     'manut_ultimo'   => $man_ult,
     'manut_alertar'  => $man_alertar,
 
-    // categoria base (se você usa em outros pontos)
     'cat_id' => $cat_id,
   ]);
 
@@ -904,32 +838,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   numero_serie=?,
                   status_id=?,
                   local_id=?"
-                . ($hasDepositoCol   ? ", deposito_id=?" : "")
-                . ", fornecedor_id=?, "
-                . ($hasNF            ? "nf_numero=?," : "")
-                . " data_compra=?, "
-                . ($hasGarantiaAte   ? "garantia_ate=?," : "")
-                . ($hasGarantiaMeses ? "garantia_meses=?," : "")
-                . ($hasCusto         ? "custo_aquisicao=?," : "")
-                . ($hasDeprec        ? "depreciacao_meses=?," : "")
-                . ($hasCentroCusto   ? "centro_custo=?," : "")
-                . " observacoes=? "
-                . ($hasAtivoFlag     ? ", ativo=? " : "")
-                . ($hasManutUnid     ? ", manut_periodo_unid=? " : "")
-                . ($hasManutQtd      ? ", manut_periodo_qtd=? " : "")
-                . ($hasManutUlt      ? ", manut_ultimo=? " : "")
-                . ($hasManutAlertar  ? ", manut_alertar=? " : "")
-
-                // colunas opcionais (listas/checkbox)
-                . ($col_cat_item     ? ", categoria_item_id=? " : "")
-                . ($col_inf_cat      ? ", informar_categoria=? " : "")
-                . ($col_nome_item    ? ", nome_item_id=? " : "")
-                . ($col_nome_digit   ? ", nome_digit=? " : "")
-                . ($col_nome_txt     ? ", nome_txt=? " : "")
-                . ($col_inf_deposito ? ", informar_deposito=? " : "")
-                . ($col_sector_item  ? ", sector_item_id=? " : "")
-                . ($col_aq_loc       ? ", aquisicao_tipo=? " : "")
-                . " WHERE id=?";
+              . ($hasDepositoCol   ? ", deposito_id=?" : "")
+              . ", fornecedor_id=?, "
+              . ($hasNF            ? "nf_numero=?," : "")
+              . " data_compra=?, "
+              . ($hasGarantiaAte   ? "garantia_ate=?," : "")
+              . ($hasGarantiaMeses ? "garantia_meses=?," : "")
+              . ($hasCusto         ? "custo_aquisicao=?," : "")
+              . ($hasDeprec        ? "depreciacao_meses=?," : "")
+              . ($hasCentroCusto   ? "centro_custo=?," : "")
+              . " observacoes=? "
+              . ($hasAtivoFlag     ? ", ativo=? " : "")
+              . ($hasManutUnid     ? ", manut_periodo_unid=? " : "")
+              . ($hasManutQtd      ? ", manut_periodo_qtd=? " : "")
+              . ($hasManutUlt      ? ", manut_ultimo=? " : "")
+              . ($hasManutAlertar  ? ", manut_alertar=? " : "")
+              . ($col_cat_item     ? ", categoria_item_id=? " : "")
+              . ($col_inf_cat      ? ", informar_categoria=? " : "")
+              . ($col_nome_item    ? ", nome_item_id=? " : "")
+              . ($col_nome_digit   ? ", nome_digit=? " : "")
+              . ($col_nome_txt     ? ", nome_txt=? " : "")
+              . ($col_inf_deposito ? ", informar_deposito=? " : "")
+              . ($col_sector_item  ? ", sector_item_id=? " : "")
+              . ($col_aq_loc       ? ", aquisicao_tipo=? " : "")
+              . " WHERE id=?";
 
         $types = "siiissii";
         $args  = [$nome, $cat_id, $marca_id, $modelo_id, $tag, $serie, $status_id, $local_id];
@@ -975,54 +907,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // INSERT
         $sql = "INSERT INTO moz_ativo (
                   nome, cat_id, marca_id, modelo_id, tag_patrimonial, numero_serie, status_id, local_id"
-                . ($hasDepositoCol   ? ", deposito_id" : "")
-                . ", fornecedor_id, "
-                . ($hasNF            ? "nf_numero, " : "")
-                . "data_compra, "
-                . ($hasGarantiaAte   ? "garantia_ate, " : "")
-                . ($hasGarantiaMeses ? "garantia_meses, " : "")
-                . ($hasCusto         ? "custo_aquisicao, " : "")
-                . ($hasDeprec        ? "depreciacao_meses, " : "")
-                . ($hasCentroCusto   ? "centro_custo, " : "")
-                . "observacoes"
-                . ($hasAtivoFlag     ? ", ativo" : "")
-                . ($hasManutUnid     ? ", manut_periodo_unid" : "")
-                . ($hasManutQtd      ? ", manut_periodo_qtd" : "")
-                . ($hasManutUlt      ? ", manut_ultimo" : "")
-                . ($hasManutAlertar  ? ", manut_alertar" : "")
-                . ($col_cat_item     ? ", categoria_item_id" : "")
-                . ($col_inf_cat      ? ", informar_categoria" : "")
-                . ($col_nome_item    ? ", nome_item_id" : "")
-                . ($col_nome_digit   ? ", nome_digit" : "")
-                . ($col_nome_txt     ? ", nome_txt" : "")
-                . ($col_inf_deposito ? ", informar_deposito" : "")
-                . ($col_sector_item  ? ", sector_item_id" : "")
-                . ($col_aq_loc       ? ", aquisicao_tipo" : "")
-                . ") VALUES (?,?,?,?,?,?,?,?"
-                . ($hasDepositoCol   ? ",?" : "")
-                . ",?"
-                . ($hasNF            ? ",?" : "")
-                . ",?"
-                . ($hasGarantiaAte   ? ",?" : "")
-                . ($hasGarantiaMeses ? ",?" : "")
-                . ($hasCusto         ? ",?" : "")
-                . ($hasDeprec        ? ",?" : "")
-                . ($hasCentroCusto   ? ",?" : "")
-                . ",?"
-                . ($hasAtivoFlag     ? ",?" : "")
-                . ($hasManutUnid     ? ",?" : "")
-                . ($hasManutQtd      ? ",?" : "")
-                . ($hasManutUlt      ? ",?" : "")
-                . ($hasManutAlertar  ? ",?" : "")
-                . ($col_cat_item     ? ",?" : "")
-                . ($col_inf_cat      ? ",?" : "")
-                . ($col_nome_item    ? ",?" : "")
-                . ($col_nome_digit   ? ",?" : "")
-                . ($col_nome_txt     ? ",?" : "")
-                . ($col_inf_deposito ? ",?" : "")
-                . ($col_sector_item  ? ",?" : "")
-                . ($col_aq_loc       ? ",?" : "")
-                . ")";
+              . ($hasDepositoCol   ? ", deposito_id" : "")
+              . ", fornecedor_id, "
+              . ($hasNF            ? "nf_numero, " : "")
+              . "data_compra, "
+              . ($hasGarantiaAte   ? "garantia_ate, " : "")
+              . ($hasGarantiaMeses ? "garantia_meses, " : "")
+              . ($hasCusto         ? "custo_aquisicao, " : "")
+              . ($hasDeprec        ? "depreciacao_meses, " : "")
+              . ($hasCentroCusto   ? "centro_custo, " : "")
+              . "observacoes"
+              . ($hasAtivoFlag     ? ", ativo" : "")
+              . ($hasManutUnid     ? ", manut_periodo_unid" : "")
+              . ($hasManutQtd      ? ", manut_periodo_qtd" : "")
+              . ($hasManutUlt      ? ", manut_ultimo" : "")
+              . ($hasManutAlertar  ? ", manut_alertar" : "")
+              . ($col_cat_item     ? ", categoria_item_id" : "")
+              . ($col_inf_cat      ? ", informar_categoria" : "")
+              . ($col_nome_item    ? ", nome_item_id" : "")
+              . ($col_nome_digit   ? ", nome_digit" : "")
+              . ($col_nome_txt     ? ", nome_txt" : "")
+              . ($col_inf_deposito ? ", informar_deposito" : "")
+              . ($col_sector_item  ? ", sector_item_id" : "")
+              . ($col_aq_loc       ? ", aquisicao_tipo" : "")
+              . ") VALUES (?,?,?,?,?,?,?,?"
+              . ($hasDepositoCol   ? ",?" : "")
+              . ",?"
+              . ($hasNF            ? ",?" : "")
+              . ",?"
+              . ($hasGarantiaAte   ? ",?" : "")
+              . ($hasGarantiaMeses ? ",?" : "")
+              . ($hasCusto         ? ",?" : "")
+              . ($hasDeprec        ? ",?" : "")
+              . ($hasCentroCusto   ? ",?" : "")
+              . ",?"
+              . ($hasAtivoFlag     ? ",?" : "")
+              . ($hasManutUnid     ? ",?" : "")
+              . ($hasManutQtd      ? ",?" : "")
+              . ($hasManutUlt      ? ",?" : "")
+              . ($hasManutAlertar  ? ",?" : "")
+              . ($col_cat_item     ? ",?" : "")
+              . ($col_inf_cat      ? ",?" : "")
+              . ($col_nome_item    ? ",?" : "")
+              . ($col_nome_digit   ? ",?" : "")
+              . ($col_nome_txt     ? ",?" : "")
+              . ($col_inf_deposito ? ",?" : "")
+              . ($col_sector_item  ? ",?" : "")
+              . ($col_aq_loc       ? ",?" : "")
+              . ")";
 
         $types = "siiissii";
         $args  = [$nome, $cat_id, $marca_id, $modelo_id, $tag, $serie, $status_id, $local_id];
@@ -1066,32 +998,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
 
       // ====== Salva uploads no storage APÓS ter $id ======
-      // Módulo = 'ativos'
       if ($id <= 0) throw new Exception('ID do ativo não definido para anexos.');
 
-      // Fotos
       if (!empty($uploads_fotos)) {
         foreach ($uploads_fotos as $f) {
-          $saved = storage_save_upload($dbc, 'ativos', (int)$id, $f, ['png', 'jpg', 'jpeg', 'webp']);
+          $saved = storage_save_upload($dbc, 'ativos', (int)$id, $f, ['png','jpg','jpeg','webp']);
           $photos_paths[] = !empty($saved['download_url']) ? $saved['download_url'] : $saved['rel_path'];
         }
       }
 
-      // Contrato PDF
       if (!empty($upload_contrato)) {
         $saved = storage_save_upload($dbc, 'ativos', (int)$id, $upload_contrato, ['pdf']);
         $contrato_path = !empty($saved['download_url']) ? $saved['download_url'] : $saved['rel_path'];
       }
 
-      // Outros
       if (!empty($uploads_outros)) {
         foreach ($uploads_outros as $f) {
-          $saved = storage_save_upload($dbc, 'ativos', (int)$id, $f, ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'png', 'jpg', 'jpeg', 'webp']);
+          $saved = storage_save_upload($dbc, 'ativos', (int)$id, $f, ['pdf','doc','docx','xls','xlsx','ppt','pptx','txt','csv','png','jpg','jpeg','webp']);
           $outros_paths[] = !empty($saved['download_url']) ? $saved['download_url'] : $saved['rel_path'];
         }
       }
 
-      // custom fields (mantido)
+      // custom fields
       if ($hasCFDef && $hasCFVal) {
         $dbc->query("DELETE FROM moz_cf_val WHERE ativo_id=" . (int)$id);
 
@@ -1108,7 +1036,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
       }
 
-      // impedimento de atrelamento duplicado (mantido)
+      // impedimento de atrelamento duplicado
       if (!empty($_POST['atrelados']) && is_array($_POST['atrelados']) && table_exists($dbc, 'moz_ativo_relacao')) {
         $conflitos = [];
         $chk = $dbc->prepare("SELECT origem_id FROM moz_ativo_relacao WHERE destino_id=? AND tipo='depends' AND (descricao IS NULL OR descricao='') AND origem_id<>?");
@@ -1132,13 +1060,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($_POST['atrelados'] as $aid) {
           $aid = (int)$aid;
           if ($aid <= 0) continue;
-          $_POST['rel_tipo'][]     = 'depends';
-          $_POST['rel_destino'][]  = $aid;
-          $_POST['rel_descricao'][]= '';
+          $_POST['rel_tipo'][]      = 'depends';
+          $_POST['rel_destino'][]   = $aid;
+          $_POST['rel_descricao'][] = '';
         }
       }
 
-      // 8) Vínculos: tipo vem do ga-list link_type (value = name)
+      // vínculos
       if ($hasRelTbl) {
         $dbc->query("DELETE FROM moz_ativo_relacao WHERE origem_id=" . (int)$id);
 
@@ -1155,7 +1083,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ds = trim((string)($desc[$i] ?? ''));
 
             if ($t === '' || $d <= 0) continue;
-
             $ins->bind_param('iiss', $id, $d, $t, $ds);
             $ins->execute();
           }
@@ -1163,7 +1090,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
       }
 
-      // 12) anexos
+      // anexos
       if ($hasAnexoTbl) {
         if ($photos_paths) {
           $a = $dbc->prepare("INSERT INTO moz_ativo_anexo (ativo_id, tipo, path) VALUES (?,?,?)");
@@ -1216,7 +1143,7 @@ $rs = $dbc->query("SELECT id, nome FROM moz_marca " . (has_col($dbc, 'moz_marca'
 if ($rs) while ($r = $rs->fetch_assoc()) $marcas[] = $r;
 
 $modelos = [];
-$locais  = $empresas; // Local = empresas
+$locais  = $empresas;
 
 if (!isset($rec) || !is_array($rec)) {
   $rec = [
@@ -1244,22 +1171,17 @@ if (!isset($rec) || !is_array($rec)) {
     'manut_ultimo'       => '',
     'manut_alertar'      => 1,
 
-    // 1) Nome (lista + digitar)
     'nome_digit'         => 0,
     'nome_item_id'       => '',
     'nome_txt'           => '',
 
-    // 3) Categoria (checkbox + lista)
     'informar_categoria' => 0,
     'categoria_item_id'  => '',
 
-    // 4) Depósito (checkbox)
     'informar_deposito'  => 0,
 
-    // 5) SETOR/SUBSETOR
     'sector_item_id'     => '',
 
-    // 6) Aquisição/Locação
     'aquisicao_tipo'     => '',
   ];
 }
@@ -1269,7 +1191,7 @@ $cf_vals = [];
 $rels    = [];
 $atrelados = [];
 
-// fornecedores (se tabela existir)
+// fornecedores
 $fornecedores = [];
 if ($hasFornecedorTbl) {
   $r = $dbc->query("SELECT id, nome FROM moz_fornecedor " . (has_col($dbc, 'moz_fornecedor', 'ativo') ? 'WHERE ativo=1' : '') . " ORDER BY nome");
@@ -1310,19 +1232,18 @@ if ($id > 0 && !$err && $_SERVER['REQUEST_METHOD'] !== 'POST') {
   $st->close();
 
   if ($row) {
-    $rec['nome']          = $row['nome'];
-    $rec['cat_id']        = $row['cat_id'];
-    $rec['marca_id']      = $row['marca_id'];
-    $rec['modelo_id']     = $row['modelo_id'];
-    $rec['tag_patrimonial']= $row['tag_patrimonial'];
-    $rec['numero_serie']  = $row['numero_serie'];
-    $rec['status_id']     = $row['status_id'];
-    $rec['local_id']      = $row['local_id'];
+    $rec['nome']            = $row['nome'];
+    $rec['cat_id']          = $row['cat_id'];
+    $rec['marca_id']        = $row['marca_id'];
+    $rec['modelo_id']       = $row['modelo_id'];
+    $rec['tag_patrimonial'] = $row['tag_patrimonial'];
+    $rec['numero_serie']    = $row['numero_serie'];
+    $rec['status_id']       = $row['status_id'];
+    $rec['local_id']        = $row['local_id'];
 
     if ($hasDepositoCol) $rec['deposito_id'] = $row['deposito_id'];
 
     $rec['fornecedor_id'] = $row['fornecedor_id'];
-
     if ($hasNF) $rec['nf_numero'] = $row['nf_numero'];
 
     $rec['data_compra'] = $row['data_compra'];
@@ -1400,7 +1321,6 @@ if ($id > 0 && !$err && $_SERVER['REQUEST_METHOD'] !== 'POST') {
   $anexos = ['foto' => [], 'contrato' => [], 'outros' => []];
 }
 
-/* Pré-carrega depósitos se já houver local/registro */
 $depositos = ($hasDepositoTbl) ? carregarDepositos($dbc, (int)($rec['local_id'] ?: 0) ?: null, $depositoTable) : [];
 
 /* 7) Garantia (meses): se não houver coluna garantia_meses, tenta inferir por garantia_ate - data_compra */
@@ -1423,10 +1343,41 @@ if (!$hasGarantiaMeses) {
 /* ================== Includes visuais ================== */
 include_once ROOT_PATH . 'system/includes/head.php';
 ?>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link href="<?= BASE_URL ?>/modules/gestao_ativos/includes/css/style_gestao_ativos.css?v=1.0.1" rel="stylesheet">
-<?php include_once ROOT_PATH . 'system/includes/navbar.php'; ?>
+</head>
+<body>
 
-<div id="page-wrapper">
+<style>
+  /* ===== Mobile-first helpers ===== */
+  .mwrap{max-width:740px;margin:0 auto;padding:12px 10px;}
+  .mbar{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+  .mbar h1{margin:0;font-size:18px}
+  .mbar .actions{display:flex;flex-wrap:wrap;gap:8px}
+  .mbar .actions .btn{padding:10px 12px}
+  .mcard{background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:12px;margin-bottom:12px}
+  .mgrid{display:grid;grid-template-columns:1fr;gap:10px}
+  .mgrid .row{display:flex;gap:10px;align-items:center}
+  .mgrid label{font-weight:600}
+  .mgrid input,.mgrid select,.mgrid textarea{width:100%;min-height:42px}
+  .mgrid textarea{min-height:92px}
+  details.msec{border:1px solid #eee;border-radius:12px;background:#fff;margin-bottom:10px;overflow:hidden}
+  details.msec > summary{list-style:none;cursor:pointer;padding:12px 12px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+  details.msec > summary::-webkit-details-marker{display:none}
+  details.msec[open] > summary{border-bottom:1px solid #eee}
+  .msec-body{padding:12px}
+  .chip{background:#f8f8f8}
+  .file-zone{border:1px dashed #ccc;border-radius:12px;padding:12px}
+  .hint{color:#666;font-size:12px}
+  .mfooterbar{position:sticky;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);border-top:1px solid #eee;padding:10px;display:flex;gap:10px;justify-content:flex-end;backdrop-filter: blur(6px)}
+  .mfooterbar .btn{min-height:44px}
+  .btn.primary{background:#1b74e4;color:#fff}
+  @media (min-width: 900px){
+    .mgrid.two{grid-template-columns:1fr 1fr}
+    .mgrid.three{grid-template-columns:1fr 1fr 1fr}
+  }
+</style>
+
   <div class="container-fluid">
     <div class="row">
       <div class="col-lg-12">
@@ -1434,622 +1385,591 @@ include_once ROOT_PATH . 'system/includes/head.php';
       </div>
     </div>
 
-    <section class="bpm">
-      <div class="container">
+    <div class="mwrap">
+      <div class="mbar">
+        <h1>Ativos — <?= $id > 0 ? 'Editar' : 'Cadastro' ?> (Mobile)</h1>
+        <div class="actions">
+          <a class="btn" href="ativos-listar.php">Listar</a>
+          <a class="btn" href="ativos-importar.php">Importar CSV</a>
+          <?php if ($id > 0): ?>
+            <a class="btn" href="<?= BASE_URL ?>/modules/gestao_ativos/ativos-vida.php?id=<?= (int)$id ?>">Vida</a>
+            <a class="btn" href="<?= BASE_URL ?>/modules/gestao_ativos/manutencoes-listar.php?ativo_id=<?= (int)$id ?>">Manutenções</a>
+          <?php endif; ?>
+        </div>
+      </div>
 
-        <header class="toolbar">
-          <h1>Ativos — <?= $id > 0 ? 'Editar' : 'Cadastro' ?></h1>
-          <div class="actions">
-            <a class="btn" href="ativos-listar.php">Listar ativos</a>
-            <a class="btn" href="ativos-importar.php">Importar CSV</a>
-            <?php if ($id > 0): ?>
-              <a class="btn" href="<?= BASE_URL ?>/modules/gestao_ativos/ativos-vida.php?id=<?= (int)$id ?>">Vida do ativo</a>
-              <a class="btn" href="<?= BASE_URL ?>/modules/gestao_ativos/manutencoes-listar.php?ativo_id=<?= (int)$id ?>">Manutenções</a>
-            <?php endif; ?>
-          </div>
-        </header>
+      <?php if ($err): ?>
+        <div class="alert alert-danger"><?= h($err) ?></div>
+      <?php endif; ?>
 
-        <?php if ($err): ?>
-          <div class="alert alert-danger"><?= h($err) ?></div>
-        <?php endif; ?>
+      <?php if (!empty($_SESSION['flash_ok'])): ?>
+        <div class="alert alert-success"><?= h($_SESSION['flash_ok']); unset($_SESSION['flash_ok']); ?></div>
+      <?php endif; ?>
 
-        <?php if (!empty($_SESSION['flash_ok'])): ?>
-          <div class="alert alert-success"><?= h($_SESSION['flash_ok']); unset($_SESSION['flash_ok']); ?></div>
-        <?php endif; ?>
+      <form class="mcard" method="post" enctype="multipart/form-data" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
+        <input type="hidden" name="id" value="<?= (int)$id ?>">
 
-        <form class="card" method="post" enctype="multipart/form-data" autocomplete="off" novalidate>
-          <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
-          <input type="hidden" name="id" value="<?= (int)$id ?>">
-
-          <p class="subtitle">Identificação</p>
-
-          <div class="grid cols-4">
-            <div>
-              <label>Local *</label>
-              <select name="local_id" id="local_id" required>
-                <option value="">—</option>
-                <?php foreach ($locais as $l): ?>
-                  <option value="<?= (int)$l['id'] ?>" <?= (string)$rec['local_id'] === (string)$l['id'] ? 'selected' : '' ?>>
-                    <?= h($l['nome']) ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-
-            <div>
-              <label>Setor/Subsetor</label>
-
-              <!-- valor final selecionado (leaf) -->
-              <input type="hidden" name="sector_item_id" id="sector_item_id" value="<?= h($rec['sector_item_id']) ?>">
-
-              <!-- aqui o JS vai montar os <select> em cascata -->
-              <div id="sector_cascade"></div>
-
-              <?php if (!($listIdSector && $itSector)): ?>
-                <span class="hint">Lista “Setor” não encontrada (slug: <?= h($SLUG_SECTOR) ?>).</span>
-              <?php endif; ?>
-              <?php if (!$col_sector_item): ?>
-                <span class="hint">Coluna moz_ativo.sector_item_id não existe (não vai salvar).</span>
-              <?php endif; ?>
-            </div>
-
-            <!-- 1) NOME (lista + Digitar) -->
-            <div>
-              <label>Nome *</label>
-
-              <div id="wrap_nome_select">
-                <select name="nome_item_id" id="nome_item_id" <?= ($listIdNome && $itNome) ? '' : 'disabled' ?>>
-                  <option value="">— selecione —</option>
-                  <?php foreach ($itNome as $it): ?>
-                    <option value="<?= (int)$it['id'] ?>" <?= ((int)$rec['nome_item_id'] === (int)$it['id']) ? 'selected' : '' ?>>
-                      <?= h($it['label']) ?>
+        <!-- ===== Identificação ===== -->
+        <details class="msec" open>
+          <summary>Identificação <span class="hint">toque para recolher</span></summary>
+          <div class="msec-body">
+            <div class="mgrid">
+              <div>
+                <label>Local *</label>
+                <select name="local_id" id="local_id" required>
+                  <option value="">—</option>
+                  <?php foreach ($locais as $l): ?>
+                    <option value="<?= (int)$l['id'] ?>" <?= (string)$rec['local_id'] === (string)$l['id'] ? 'selected' : '' ?>>
+                      <?= h($l['nome']) ?>
                     </option>
                   <?php endforeach; ?>
                 </select>
               </div>
 
-              <div id="wrap_nome_txt" style="display:none;">
-                <input
-                  type="text"
-                  name="nome_txt"
-                  id="nome_txt"
-                  value="<?= h($rec['nome_txt'] ?: $rec['nome']) ?>"
-                  placeholder="Ex.: Notebook João Silva"
-                />
+              <div>
+                <label>Setor/Subsetor</label>
+                <input type="hidden" name="sector_item_id" id="sector_item_id" value="<?= h($rec['sector_item_id']) ?>">
+                <div id="sector_cascade"></div>
+                <?php if (!($listIdSector && $itSector)): ?>
+                  <div class="hint">Lista “Setor” não encontrada (slug: <?= h($SLUG_SECTOR) ?>).</div>
+                <?php endif; ?>
+                <?php if (!$col_sector_item): ?>
+                  <div class="hint">Coluna moz_ativo.sector_item_id não existe (não vai salvar).</div>
+                <?php endif; ?>
               </div>
 
-              <div style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
-                <label style="display:flex; gap:6px; align-items:center; font-weight:normal; margin:0;">
-                  <input type="checkbox" id="nome_digit" name="nome_digit" value="1" <?= !empty($rec['nome_digit']) ? 'checked' : '' ?>>
-                  Digitar
-                </label>
-                <span class="hint">Marque para digitar o “Nome do Ativo”.</span>
-              </div>
+              <div>
+                <label>Nome *</label>
 
-              <?php if (!($listIdNome && $itNome)): ?>
-                <span class="hint">Lista “Nome do Ativo” não encontrada (slug: <?= h($SLUG_NOME_ATIVO) ?>). Campo ficará como digitação.</span>
-              <?php endif; ?>
-            </div>
-
-            <div>
-              <label>Marca</label>
-              <select name="marca_id" id="marca_id">
-                <option value="">—</option>
-                <?php foreach ($marcas as $m): ?>
-                  <option value="<?= (int)$m['id'] ?>" <?= (string)$rec['marca_id'] === (string)$m['id'] ? 'selected' : '' ?>>
-                    <?= h($m['nome']) ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid cols-4">
-            <div>
-              <label>Modelo</label>
-              <select name="modelo_id" id="modelo_id">
-                <option value="">—</option>
-                <?php foreach ($modelos as $mo): ?>
-                  <option value="<?= (int)$mo['id'] ?>" <?= (string)$rec['modelo_id'] === (string)$mo['id'] ? 'selected' : '' ?>>
-                    <?= h($mo['nome']) ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-
-            <div>
-              <label>Tag / Patrimônio</label>
-              <input type="text" name="tag_patrimonial" placeholder="TAG" value="<?= h($rec['tag_patrimonial']) ?>"/>
-            </div>
-
-            <div>
-              <label>Nº de série</label>
-              <input type="text" name="numero_serie" placeholder="Serial" value="<?= h($rec['numero_serie']) ?>"/>
-            </div>
-
-            <!-- 2) Status operacional (ga-list op_status) -->
-            <div>
-              <label>Status operacional *</label>
-              <select name="status_id" id="status_id" required>
-                <option value="">—</option>
-                <?php foreach ($itStatus as $it): ?>
-                  <option value="<?= (int)$it['id'] ?>" <?= ((int)$rec['status_id'] === (int)$it['id']) ? 'selected' : '' ?>>
-                    <?= h($it['label']) ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-              <?php if (!($listIdStatus && $itStatus)): ?>
-                <span class="hint">Lista “Status Operacional” não encontrada (slug: <?= h($SLUG_STATUS_OP) ?>).</span>
-              <?php endif; ?>
-            </div>
-          </div>
-
-          <div class="grid cols-4">
-            <div>
-              <label>Ativo?</label>
-              <select name="ativo" <?= $hasAtivoFlag ? '' : 'disabled' ?>>
-                <option value="1" <?= !empty($rec['ativo']) ? 'selected' : '' ?>>Sim</option>
-                <option value="0" <?= empty($rec['ativo']) ? 'selected' : '' ?>>Não</option>
-              </select>
-              <?php if (!$hasAtivoFlag): ?>
-                <span class="hint">Campo "ativo" não existe em moz_ativo</span>
-              <?php endif; ?>
-            </div>
-
-            <!-- 6) Aquisição / Locação -->
-            <div>
-              <label>Aquisição / Locação</label>
-              <select name="aquisicao_tipo" <?= $col_aq_loc ? '' : 'disabled' ?>>
-                <option value="">—</option>
-                <option value="Aquisicao" <?= ($rec['aquisicao_tipo'] === 'Aquisicao') ? 'selected' : '' ?>>Aquisição</option>
-                <option value="Locacao" <?= ($rec['aquisicao_tipo'] === 'Locacao') ? 'selected' : '' ?>>Locação</option>
-              </select>
-              <?php if (!$col_aq_loc): ?>
-                <span class="hint">Coluna moz_ativo.aquisicao_tipo não encontrada.</span>
-              <?php endif; ?>
-            </div>
-          </div>
-
-          <!-- 3) Categoria de Ativos (opcional por checkbox) -->
-          <div class="grid cols-4" style="align-items:end">
-            <div>
-              <label style="display:flex; gap:6px; align-items:center; font-weight:normal; margin:0;">
-                <input type="checkbox" id="informar_categoria" name="informar_categoria" value="1" <?= !empty($rec['informar_categoria']) ? 'checked' : '' ?>>
-                Informar categoria
-              </label>
-              <span class="hint">Se marcar, mostra a lista “Categoria de Ativos”.</span>
-            </div>
-
-            <div id="wrap_categoria" style="display:none;">
-              <label>Categoria de Ativos</label>
-
-              <!-- valor final selecionado (leaf) -->
-              <input type="hidden" name="categoria_item_id" id="categoria_item_id" value="<?= h($rec['categoria_item_id']) ?>">
-
-              <!-- aqui o JS vai montar os <select> em cascata -->
-              <div id="cat_cascade"></div>
-
-              <?php if (!($listIdCat && $itCat)): ?>
-                <span class="hint">Lista “Categoria de Ativos” não encontrada (slug: <?= h($SLUG_CAT_ATIVOS) ?>).</span>
-              <?php endif; ?>
-              <?php if (!$col_cat_item): ?>
-                <span class="hint">Coluna moz_ativo.categoria_item_id não existe (não vai salvar).</span>
-              <?php endif; ?>
-            </div>
-
-            <div></div>
-            <div></div>
-          </div>
-
-          <!-- 4) Depósito (checkbox para exibir) -->
-          <div class="grid cols-4" style="align-items:end">
-            <div>
-              <label style="display:flex; gap:6px; align-items:center; font-weight:normal; margin:0;">
-                <input type="checkbox" id="informar_deposito" name="informar_deposito" value="1" <?= !empty($rec['informar_deposito']) ? 'checked' : '' ?>>
-                Informar Depósito
-              </label>
-              <span class="hint">Se marcar, mostra o select de Depósitos.</span>
-            </div>
-
-            <div id="wrap_deposito" style="display:none;">
-              <label>Depósito</label>
-              <select name="deposito_id" id="deposito_id" <?= ($hasDepositoTbl && $hasDepositoCol) ? '' : 'disabled' ?>>
-                <option value="">—</option>
-                <?php if ($depositos): foreach ($depositos as $d): ?>
-                  <option value="<?= (int)$d['id'] ?>" <?= (string)$rec['deposito_id'] === (string)$d['id'] ? 'selected' : '' ?>>
-                    <?= h($d['nome']) ?>
-                  </option>
-                <?php endforeach; endif; ?>
-              </select>
-
-              <?php if (!($hasDepositoTbl && $hasDepositoCol)): ?>
-                <span class="hint">Tabela/coluna de depósito ausente (esperado: <?= h($depositoTable ?: 'moz_deposito') ?> e moz_ativo.deposito_id)</span>
-              <?php endif; ?>
-            </div>
-
-            <div></div>
-            <div></div>
-          </div>
-
-          <div class="divider"></div>
-
-          <p class="subtitle">Dados de aquisição</p>
-
-          <div class="grid cols-4">
-            <div>
-              <label>Fornecedor</label>
-              <select name="fornecedor_id" <?= $hasFornecedorTbl ? '' : 'disabled' ?>>
-                <option value="">—</option>
-                <?php foreach ($fornecedores as $f): ?>
-                  <option value="<?= (int)$f['id'] ?>" <?= (string)$rec['fornecedor_id'] === (string)$f['id'] ? 'selected' : '' ?>>
-                    <?= h($f['nome']) ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-              <?php if (!$hasFornecedorTbl): ?>
-                <span class="hint">Tabela moz_fornecedor ausente</span>
-              <?php endif; ?>
-            </div>
-
-            <div>
-              <label>Nota fiscal</label>
-              <input type="text" name="nf_numero" value="<?= h($rec['nf_numero']) ?>" placeholder="NF-e" <?= $hasNF ? '' : 'disabled' ?>/>
-            </div>
-
-            <div>
-              <label>Data de compra</label>
-              <input type="date" name="data_compra" id="data_compra" value="<?= h($rec['data_compra']) ?>"/>
-            </div>
-
-            <?php
-              $garantiaInfo = '';
-              $garantiaExpirada = false;
-
-              if (!empty($rec['data_compra']) && (int)$rec['garantia_meses'] > 0) {
-                try {
-                  $dc   = new DateTimeImmutable($rec['data_compra']);
-                  $exp  = $dc->add(new DateInterval('P' . ((int)$rec['garantia_meses']) . 'M'));
-                  $hoje = new DateTimeImmutable('today');
-
-                  if ($exp < $hoje) {
-                    $garantiaExpirada = true;
-                    $garantiaInfo = 'Garantia expirada';
-                  }
-                } catch (Exception $e) {}
-              }
-            ?>
-
-            <div>
-              <label>Garantia (meses)</label>
-              <input type="number" min="0" name="garantia_meses" id="garantia_meses" value="<?= (int)$rec['garantia_meses'] ?>" <?= ($hasGarantiaMeses || $hasGarantiaAte) ? '' : 'disabled' ?>/>
-              <?php if (!($hasGarantiaMeses || $hasGarantiaAte)): ?>
-                <span class="hint">Coluna de garantia não encontrada (garantia_meses ou garantia_ate).</span>
-              <?php endif; ?>
-              <?php if ($garantiaExpirada): ?>
-                <div style="color:#c00; font-weight:600; margin-top:4px;"><?= h($garantiaInfo) ?></div>
-              <?php endif; ?>
-            </div>
-          </div>
-
-          <div class="grid cols-3">
-            <div>
-              <label>Valor de compra</label>
-              <input type="number" step="0.01" min="0" name="custo_aquisicao" value="<?= h($rec['custo_aquisicao']) ?>" placeholder="0,00" <?= $hasCusto ? '' : 'disabled' ?>/>
-            </div>
-
-            <div>
-              <label>Depreciação (meses)</label>
-              <input type="number" min="0" name="depreciacao_meses" value="<?= $hasDeprec ? h($rec['depreciacao_meses']) : '' ?>" placeholder="36" <?= $hasDeprec ? '' : 'disabled' ?>/>
-            </div>
-
-            <div>
-              <label>Centro de custo</label>
-              <input type="text" name="centro_custo" value="<?= h($rec['centro_custo']) ?>" placeholder="Opcional" <?= $hasCentroCusto ? '' : 'disabled' ?>/>
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <p class="subtitle">Manutenção preventiva</p>
-
-          <?php
-            $per_value = '';
-            if (($rec['manut_qtd'] ?? 0) > 0) {
-              $per_value = ($rec['manut_unid'] === 'dias') ? ($rec['manut_qtd'] . 'd') : ($rec['manut_qtd'] . 'm');
-            }
-          ?>
-
-          <div class="grid cols-4">
-            <div>
-              <label>Periodicidade</label>
-              <select name="manut_periodicidade" id="manut_periodicidade" <?= ($hasManutUnid && $hasManutQtd) ? '' : 'disabled' ?>>
-                <option value="">— sem alerta —</option>
-                <optgroup label="Dias">
-                  <option value="7d"  <?= $per_value === '7d'  ? 'selected' : '' ?>>7 dias</option>
-                  <option value="15d" <?= $per_value === '15d' ? 'selected' : '' ?>>15 dias</option>
-                </optgroup>
-                <optgroup label="Meses">
-                  <?php foreach ([1, 2, 3, 6, 12, 24] as $m): ?>
-                    <option value="<?= $m . 'm' ?>" <?= $per_value === ($m . 'm') ? 'selected' : '' ?>>
-                      <?= $m ?> mês<?= $m > 1 ? 'es' : '' ?>
-                    </option>
-                  <?php endforeach; ?>
-                </optgroup>
-              </select>
-              <?php if (!($hasManutUnid && $hasManutQtd)): ?>
-                <span class="hint">Colunas de manutenção ausentes</span>
-              <?php endif; ?>
-            </div>
-
-            <div>
-              <label>Última manutenção</label>
-              <input type="date" name="manut_ultimo" id="manut_ultimo" value="<?= h($rec['manut_ultimo']) ?>" <?= $hasManutUlt ? '' : 'disabled' ?>/>
-            </div>
-
-            <div>
-              <label>Próxima manutenção</label>
-              <input type="date" id="manut_proxima" value="" readonly/>
-              <span class="hint">Calculado automaticamente no salvar</span>
-            </div>
-
-            <div>
-              <label>Alertar?</label>
-              <select name="manut_alertar" <?= $hasManutAlertar ? '' : 'disabled' ?>>
-                <option value="1" <?= ($rec['manut_alertar'] ?? 1) ? 'selected' : '' ?>>Sim</option>
-                <option value="0" <?= !($rec['manut_alertar'] ?? 1) ? 'selected' : '' ?>>Não</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <p class="subtitle">Atributos (campos customizados por categoria)</p>
-
-          <div id="attr-list" class="stack">
-            <?php if ($hasCFDef && $rec['cat_id']): ?>
-
-              <?php if (!$cf_defs) {
-                $sql = "SELECT $cfCols FROM moz_cf_def WHERE cat_id=? AND $cfWhere ORDER BY $cfOrder";
-                $q = $dbc->prepare($sql);
-                $q->bind_param('i', $rec['cat_id']);
-                $q->execute();
-                $r = $q->get_result();
-                while ($row = $r->fetch_assoc()) $cf_defs[] = $row;
-                $q->close();
-              } ?>
-
-              <?php if ($cf_defs): foreach ($cf_defs as $def):
-                $val = $cf_vals[$def['id']] ?? '';
-              ?>
-                <div class="grid cols-2" style="align-items:end">
-                  <div>
-                    <label><?= h($def['nome']) ?><?= !empty($def['required']) ? ' *' : '' ?></label>
-                    <input type="text" name="cf[<?= (int)$def['id'] ?>]" value="<?= h($val) ?>" <?= !empty($def['required']) ? 'required' : '' ?> />
-                  </div>
-                </div>
-              <?php endforeach; else: ?>
-                <div class="hint">Sem campos customizados para esta categoria.</div>
-              <?php endif; ?>
-
-            <?php else: ?>
-              <div class="hint">Selecione a categoria e salve para carregar os campos customizados.</div>
-            <?php endif; ?>
-          </div>
-
-          <div class="divider"></div>
-
-          <p class="subtitle">Vínculos (rede/energia/depende)</p>
-
-          <div id="attach-list" class="stack">
-            <?php if ($rels): foreach ($rels as $r): ?>
-              <div class="grid cols-4" style="align-items:end">
-                <div>
-                  <label>Tipo</label>
-                  <select name="rel_tipo[]">
-                    <option value="">—</option>
-                    <?php foreach ($itLink as $it): ?>
-                      <?php $val = (string)($it['name'] ?? $it['label']); ?>
-                      <option value="<?= h($val) ?>" <?= ((string)$r['tipo'] === (string)$val) ? 'selected' : '' ?>>
+                <div id="wrap_nome_select">
+                  <select name="nome_item_id" id="nome_item_id" <?= ($listIdNome && $itNome) ? '' : 'disabled' ?>>
+                    <option value="">— selecione —</option>
+                    <?php foreach ($itNome as $it): ?>
+                      <option value="<?= (int)$it['id'] ?>" <?= ((int)$rec['nome_item_id'] === (int)$it['id']) ? 'selected' : '' ?>>
                         <?= h($it['label']) ?>
                       </option>
                     <?php endforeach; ?>
                   </select>
-                  <?php if (!($listIdLink && $itLink)): ?>
-                    <span class="hint">Lista “Tipo/Vínculos” não encontrada (slug: <?= h($SLUG_LINK_TYPE) ?>).</span>
-                  <?php endif; ?>
                 </div>
 
-                <div>
-                  <label>Ativo destino (ID)</label>
-                  <input type="number" name="rel_destino[]" value="<?= (int)$r['destino_id'] ?>" placeholder="ID do ativo"/>
+                <div id="wrap_nome_txt" style="display:none;">
+                  <input type="text" name="nome_txt" id="nome_txt"
+                    value="<?= h($rec['nome_txt'] ?: $rec['nome']) ?>"
+                    placeholder="Ex.: Notebook João Silva" />
                 </div>
 
-                <div>
-                  <label>Descrição</label>
-                  <input type="text" name="rel_descricao[]" value="<?= h($r['descricao']) ?>" placeholder="porta/observação"/>
+                <div class="row" style="gap:8px;margin-top:6px;">
+                  <label style="display:flex;gap:8px;align-items:center;font-weight:600;margin:0;">
+                    <input type="checkbox" id="nome_digit" name="nome_digit" value="1" <?= !empty($rec['nome_digit']) ? 'checked' : '' ?>>
+                    Digitar
+                  </label>
+                  <span class="hint">Use para digitar livre.</span>
                 </div>
 
-                <div class="row">
-                  <button type="button" class="btn small danger" onclick="this.closest('.grid').remove()">Remover</button>
-                </div>
+                <?php if (!($listIdNome && $itNome)): ?>
+                  <div class="hint">Lista “Nome do Ativo” não encontrada. Campo fica por digitação.</div>
+                <?php endif; ?>
               </div>
-            <?php endforeach; else: ?>
-              <div class="grid cols-4" style="align-items:end">
+
+              <div class="mgrid two">
                 <div>
-                  <label>Tipo</label>
-                  <select name="rel_tipo[]">
+                  <label>Marca</label>
+                  <select name="marca_id" id="marca_id">
                     <option value="">—</option>
-                    <?php foreach ($itLink as $it): ?>
-                      <?php $val = (string)($it['name'] ?? $it['label']); ?>
-                      <option value="<?= h($val) ?>"><?= h($it['label']) ?></option>
+                    <?php foreach ($marcas as $m): ?>
+                      <option value="<?= (int)$m['id'] ?>" <?= (string)$rec['marca_id'] === (string)$m['id'] ? 'selected' : '' ?>>
+                        <?= h($m['nome']) ?>
+                      </option>
                     <?php endforeach; ?>
                   </select>
-                  <?php if (!($listIdLink && $itLink)): ?>
-                    <span class="hint">Lista “Tipo/Vínculos” não encontrada (slug: <?= h($SLUG_LINK_TYPE) ?>).</span>
+                </div>
+
+                <div>
+                  <label>Modelo</label>
+                  <select name="modelo_id" id="modelo_id">
+                    <option value="">—</option>
+                    <?php foreach ($modelos as $mo): ?>
+                      <option value="<?= (int)$mo['id'] ?>" <?= (string)$rec['modelo_id'] === (string)$mo['id'] ? 'selected' : '' ?>>
+                        <?= h($mo['nome']) ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+              </div>
+
+              <div class="mgrid two">
+                <div>
+                  <label>Tag / Patrimônio</label>
+                  <input type="text" name="tag_patrimonial" placeholder="TAG" value="<?= h($rec['tag_patrimonial']) ?>"/>
+                </div>
+                <div>
+                  <label>Nº de série</label>
+                  <input type="text" name="numero_serie" placeholder="Serial" value="<?= h($rec['numero_serie']) ?>"/>
+                </div>
+              </div>
+
+              <div>
+                <label>Status operacional *</label>
+                <select name="status_id" id="status_id" required>
+                  <option value="">—</option>
+                  <?php foreach ($itStatus as $it): ?>
+                    <option value="<?= (int)$it['id'] ?>" <?= ((int)$rec['status_id'] === (int)$it['id']) ? 'selected' : '' ?>>
+                      <?= h($it['label']) ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+                <?php if (!($listIdStatus && $itStatus)): ?>
+                  <div class="hint">Lista “Status Operacional” não encontrada (slug: <?= h($SLUG_STATUS_OP) ?>).</div>
+                <?php endif; ?>
+              </div>
+
+              <div class="mgrid two">
+                <div>
+                  <label>Ativo?</label>
+                  <select name="ativo" <?= $hasAtivoFlag ? '' : 'disabled' ?>>
+                    <option value="1" <?= !empty($rec['ativo']) ? 'selected' : '' ?>>Sim</option>
+                    <option value="0" <?= empty($rec['ativo']) ? 'selected' : '' ?>>Não</option>
+                  </select>
+                  <?php if (!$hasAtivoFlag): ?><div class="hint">Campo "ativo" não existe em moz_ativo</div><?php endif; ?>
+                </div>
+
+                <div>
+                  <label>Aquisição / Locação</label>
+                  <select name="aquisicao_tipo" <?= $col_aq_loc ? '' : 'disabled' ?>>
+                    <option value="">—</option>
+                    <option value="Aquisicao" <?= ($rec['aquisicao_tipo'] === 'Aquisicao') ? 'selected' : '' ?>>Aquisição</option>
+                    <option value="Locacao" <?= ($rec['aquisicao_tipo'] === 'Locacao') ? 'selected' : '' ?>>Locação</option>
+                  </select>
+                  <?php if (!$col_aq_loc): ?><div class="hint">Coluna moz_ativo.aquisicao_tipo não encontrada.</div><?php endif; ?>
+                </div>
+              </div>
+
+              <div class="mcard" style="padding:10px;border-radius:12px;border:1px solid #eee;">
+                <div class="row" style="justify-content:space-between;">
+                  <label style="display:flex;gap:8px;align-items:center;margin:0;">
+                    <input type="checkbox" id="informar_categoria" name="informar_categoria" value="1" <?= !empty($rec['informar_categoria']) ? 'checked' : '' ?>>
+                    Informar categoria
+                  </label>
+                  <span class="hint">opcional</span>
+                </div>
+
+                <div id="wrap_categoria" style="display:none;margin-top:10px;">
+                  <label>Categoria de Ativos</label>
+                  <input type="hidden" name="categoria_item_id" id="categoria_item_id" value="<?= h($rec['categoria_item_id']) ?>">
+                  <div id="cat_cascade"></div>
+                  <?php if (!($listIdCat && $itCat)): ?>
+                    <div class="hint">Lista “Categoria de Ativos” não encontrada (slug: <?= h($SLUG_CAT_ATIVOS) ?>).</div>
+                  <?php endif; ?>
+                  <?php if (!$col_cat_item): ?>
+                    <div class="hint">Coluna moz_ativo.categoria_item_id não existe (não vai salvar).</div>
+                  <?php endif; ?>
+                </div>
+              </div>
+
+              <div class="mcard" style="padding:10px;border-radius:12px;border:1px solid #eee;">
+                <div class="row" style="justify-content:space-between;">
+                  <label style="display:flex;gap:8px;align-items:center;margin:0;">
+                    <input type="checkbox" id="informar_deposito" name="informar_deposito" value="1" <?= !empty($rec['informar_deposito']) ? 'checked' : '' ?>>
+                    Informar Depósito
+                  </label>
+                  <span class="hint">opcional</span>
+                </div>
+
+                <div id="wrap_deposito" style="display:none;margin-top:10px;">
+                  <label>Depósito</label>
+                  <select name="deposito_id" id="deposito_id" <?= ($hasDepositoTbl && $hasDepositoCol) ? '' : 'disabled' ?>>
+                    <option value="">—</option>
+                    <?php if ($depositos): foreach ($depositos as $d): ?>
+                      <option value="<?= (int)$d['id'] ?>" <?= (string)$rec['deposito_id'] === (string)$d['id'] ? 'selected' : '' ?>>
+                        <?= h($d['nome']) ?>
+                      </option>
+                    <?php endforeach; endif; ?>
+                  </select>
+                  <?php if (!($hasDepositoTbl && $hasDepositoCol)): ?>
+                    <div class="hint">Tabela/coluna de depósito ausente (<?= h($depositoTable ?: 'moz_deposito') ?> e moz_ativo.deposito_id)</div>
+                  <?php endif; ?>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </details>
+
+        <!-- ===== Aquisição ===== -->
+        <details class="msec">
+          <summary>Dados de aquisição</summary>
+          <div class="msec-body">
+            <div class="mgrid">
+              <div>
+                <label>Fornecedor</label>
+                <select name="fornecedor_id" <?= $hasFornecedorTbl ? '' : 'disabled' ?>>
+                  <option value="">—</option>
+                  <?php foreach ($fornecedores as $f): ?>
+                    <option value="<?= (int)$f['id'] ?>" <?= (string)$rec['fornecedor_id'] === (string)$f['id'] ? 'selected' : '' ?>>
+                      <?= h($f['nome']) ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+                <?php if (!$hasFornecedorTbl): ?><div class="hint">Tabela moz_fornecedor ausente</div><?php endif; ?>
+              </div>
+
+              <div class="mgrid two">
+                <div>
+                  <label>Nota fiscal</label>
+                  <input type="text" name="nf_numero" value="<?= h($rec['nf_numero']) ?>" placeholder="NF-e" <?= $hasNF ? '' : 'disabled' ?>/>
+                </div>
+                <div>
+                  <label>Data de compra</label>
+                  <input type="date" name="data_compra" id="data_compra" value="<?= h($rec['data_compra']) ?>"/>
+                </div>
+              </div>
+
+              <?php
+                $garantiaInfo = '';
+                $garantiaExpirada = false;
+
+                if (!empty($rec['data_compra']) && (int)$rec['garantia_meses'] > 0) {
+                  try {
+                    $dc   = new DateTimeImmutable($rec['data_compra']);
+                    $exp  = $dc->add(new DateInterval('P' . ((int)$rec['garantia_meses']) . 'M'));
+                    $hoje = new DateTimeImmutable('today');
+                    if ($exp < $hoje) { $garantiaExpirada = true; $garantiaInfo = 'Garantia expirada'; }
+                  } catch (Exception $e) {}
+                }
+              ?>
+
+              <div class="mgrid two">
+                <div>
+                  <label>Garantia (meses)</label>
+                  <input type="number" min="0" name="garantia_meses" id="garantia_meses" value="<?= (int)$rec['garantia_meses'] ?>" <?= ($hasGarantiaMeses || $hasGarantiaAte) ? '' : 'disabled' ?>/>
+                  <?php if (!($hasGarantiaMeses || $hasGarantiaAte)): ?>
+                    <div class="hint">Coluna de garantia não encontrada (garantia_meses ou garantia_ate).</div>
+                  <?php endif; ?>
+                  <?php if ($garantiaExpirada): ?>
+                    <div style="color:#c00;font-weight:700;margin-top:6px;"><?= h($garantiaInfo) ?></div>
                   <?php endif; ?>
                 </div>
 
                 <div>
-                  <label>Ativo destino (ID)</label>
-                  <input type="number" name="rel_destino[]" placeholder="ID do ativo"/>
+                  <label>Valor de compra</label>
+                  <input type="number" step="0.01" min="0" name="custo_aquisicao"
+                    value="<?= h($rec['custo_aquisicao']) ?>" placeholder="0,00" <?= $hasCusto ? '' : 'disabled' ?>/>
+                </div>
+              </div>
+
+              <div class="mgrid two">
+                <div>
+                  <label>Depreciação (meses)</label>
+                  <input type="number" min="0" name="depreciacao_meses"
+                    value="<?= $hasDeprec ? h($rec['depreciacao_meses']) : '' ?>" placeholder="36" <?= $hasDeprec ? '' : 'disabled' ?>/>
                 </div>
 
                 <div>
-                  <label>Descrição</label>
-                  <input type="text" name="rel_descricao[]" placeholder="porta/observação"/>
+                  <label>Centro de custo</label>
+                  <input type="text" name="centro_custo" value="<?= h($rec['centro_custo']) ?>" placeholder="Opcional" <?= $hasCentroCusto ? '' : 'disabled' ?>/>
                 </div>
-
-                <div class="row">
-                  <button type="button" class="btn small danger" onclick="this.closest('.grid').remove()">Remover</button>
-                </div>
-              </div>
-            <?php endif; ?>
-          </div>
-
-          <button type="button" class="btn small" id="add-attach">+ Adicionar vínculo</button>
-
-          <div class="divider"></div>
-
-          <p class="subtitle">Ativos atrelados</p>
-
-          <div class="stack" id="atrelados-wrap">
-            <div class="grid cols-3" style="align-items:end">
-              <div>
-                <label>Buscar ativo (ID, nome, TAG, S/N)</label>
-                <input type="text" id="busca_atrelado" placeholder="Digite para buscar..." list="sug_ativos"/>
-                <datalist id="sug_ativos"></datalist>
-                <span class="hint">Escolha um item da lista para adicionar</span>
-              </div>
-
-              <div class="row">
-                <button type="button" class="btn small" id="btn-add-atrelado">+ Adicionar</button>
               </div>
             </div>
+          </div>
+        </details>
 
-            <div id="atrelados-list" class="stack">
-              <?php if (!empty($atrelados)): foreach ($atrelados as $a): ?>
-                <div class="chip" data-id="<?= (int)$a['id'] ?>" style="display:flex;gap:8px;align-items:center;padding:6px 10px;border:1px solid #ddd;border-radius:16px;">
-                  <input type="hidden" name="atrelados[]" value="<?= (int)$a['id'] ?>"/>
-                  <span><?= h($a['label']) ?></span>
-                  <button type="button" class="btn small danger" onclick="this.closest('.chip').remove()">Remover</button>
+        <!-- ===== Manutenção ===== -->
+        <details class="msec">
+          <summary>Manutenção preventiva</summary>
+          <div class="msec-body">
+            <?php
+              $per_value = '';
+              if (($rec['manut_qtd'] ?? 0) > 0) {
+                $per_value = ($rec['manut_unid'] === 'dias') ? ($rec['manut_qtd'] . 'd') : ($rec['manut_qtd'] . 'm');
+              }
+            ?>
+            <div class="mgrid">
+              <div>
+                <label>Periodicidade</label>
+                <select name="manut_periodicidade" id="manut_periodicidade" <?= ($hasManutUnid && $hasManutQtd) ? '' : 'disabled' ?>>
+                  <option value="">— sem alerta —</option>
+                  <optgroup label="Dias">
+                    <option value="7d"  <?= $per_value === '7d'  ? 'selected' : '' ?>>7 dias</option>
+                    <option value="15d" <?= $per_value === '15d' ? 'selected' : '' ?>>15 dias</option>
+                  </optgroup>
+                  <optgroup label="Meses">
+                    <?php foreach ([1, 2, 3, 6, 12, 24] as $m): ?>
+                      <option value="<?= $m . 'm' ?>" <?= $per_value === ($m . 'm') ? 'selected' : '' ?>>
+                        <?= $m ?> mês<?= $m > 1 ? 'es' : '' ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </optgroup>
+                </select>
+                <?php if (!($hasManutUnid && $hasManutQtd)): ?><div class="hint">Colunas de manutenção ausentes</div><?php endif; ?>
+              </div>
+
+              <div class="mgrid two">
+                <div>
+                  <label>Última manutenção</label>
+                  <input type="date" name="manut_ultimo" id="manut_ultimo" value="<?= h($rec['manut_ultimo']) ?>" <?= $hasManutUlt ? '' : 'disabled' ?>/>
+                </div>
+
+                <div>
+                  <label>Próxima manutenção</label>
+                  <input type="date" id="manut_proxima" value="" readonly/>
+                  <div class="hint">calculado no front (visual)</div>
+                </div>
+              </div>
+
+              <div>
+                <label>Alertar?</label>
+                <select name="manut_alertar" <?= $hasManutAlertar ? '' : 'disabled' ?>>
+                  <option value="1" <?= ($rec['manut_alertar'] ?? 1) ? 'selected' : '' ?>>Sim</option>
+                  <option value="0" <?= !($rec['manut_alertar'] ?? 1) ? 'selected' : '' ?>>Não</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- ===== Campos customizados ===== -->
+        <details class="msec">
+          <summary>Atributos (custom)</summary>
+          <div class="msec-body">
+            <div id="attr-list" class="mgrid">
+              <?php if ($hasCFDef && $rec['cat_id']): ?>
+                <?php if (!$cf_defs) {
+                  $sql = "SELECT $cfCols FROM moz_cf_def WHERE cat_id=? AND $cfWhere ORDER BY $cfOrder";
+                  $q = $dbc->prepare($sql);
+                  $q->bind_param('i', $rec['cat_id']);
+                  $q->execute();
+                  $r = $q->get_result();
+                  while ($row = $r->fetch_assoc()) $cf_defs[] = $row;
+                  $q->close();
+                } ?>
+
+                <?php if ($cf_defs): foreach ($cf_defs as $def):
+                  $val = $cf_vals[$def['id']] ?? '';
+                ?>
+                  <div>
+                    <label><?= h($def['nome']) ?><?= !empty($def['required']) ? ' *' : '' ?></label>
+                    <input type="text" name="cf[<?= (int)$def['id'] ?>]" value="<?= h($val) ?>" <?= !empty($def['required']) ? 'required' : '' ?> />
+                  </div>
+                <?php endforeach; else: ?>
+                  <div class="hint">Sem campos customizados para esta categoria.</div>
+                <?php endif; ?>
+              <?php else: ?>
+                <div class="hint">Selecione a categoria e salve para carregar os campos customizados.</div>
+              <?php endif; ?>
+            </div>
+          </div>
+        </details>
+
+        <!-- ===== Vínculos ===== -->
+        <details class="msec">
+          <summary>Vínculos</summary>
+          <div class="msec-body">
+            <div id="attach-list" class="mgrid">
+              <?php if ($rels): foreach ($rels as $r): ?>
+                <div class="mcard" style="border-radius:12px;border:1px solid #eee;">
+                  <div class="mgrid">
+                    <div>
+                      <label>Tipo</label>
+                      <select name="rel_tipo[]">
+                        <option value="">—</option>
+                        <?php foreach ($itLink as $it): ?>
+                          <?php $val = (string)($it['name'] ?? $it['label']); ?>
+                          <option value="<?= h($val) ?>" <?= ((string)$r['tipo'] === (string)$val) ? 'selected' : '' ?>>
+                            <?= h($it['label']) ?>
+                          </option>
+                        <?php endforeach; ?>
+                      </select>
+                      <?php if (!($listIdLink && $itLink)): ?><div class="hint">Lista “Tipo/Vínculos” não encontrada (slug: <?= h($SLUG_LINK_TYPE) ?>).</div><?php endif; ?>
+                    </div>
+
+                    <div>
+                      <label>Ativo destino (ID)</label>
+                      <input type="number" name="rel_destino[]" value="<?= (int)$r['destino_id'] ?>" placeholder="ID do ativo"/>
+                    </div>
+
+                    <div>
+                      <label>Descrição</label>
+                      <input type="text" name="rel_descricao[]" value="<?= h($r['descricao']) ?>" placeholder="porta/observação"/>
+                    </div>
+
+                    <div class="row" style="justify-content:flex-end">
+                      <button type="button" class="btn small danger" onclick="this.closest('.mcard').remove()">Remover</button>
+                    </div>
+                  </div>
                 </div>
               <?php endforeach; else: ?>
-                <div class="hint">Nenhum atrelado adicionado.</div>
+                <div class="mcard" style="border-radius:12px;border:1px solid #eee;">
+                  <div class="mgrid">
+                    <div>
+                      <label>Tipo</label>
+                      <select name="rel_tipo[]">
+                        <option value="">—</option>
+                        <?php foreach ($itLink as $it): ?>
+                          <?php $val = (string)($it['name'] ?? $it['label']); ?>
+                          <option value="<?= h($val) ?>"><?= h($it['label']) ?></option>
+                        <?php endforeach; ?>
+                      </select>
+                      <?php if (!($listIdLink && $itLink)): ?><div class="hint">Lista “Tipo/Vínculos” não encontrada (slug: <?= h($SLUG_LINK_TYPE) ?>).</div><?php endif; ?>
+                    </div>
+
+                    <div>
+                      <label>Ativo destino (ID)</label>
+                      <input type="number" name="rel_destino[]" placeholder="ID do ativo"/>
+                    </div>
+
+                    <div>
+                      <label>Descrição</label>
+                      <input type="text" name="rel_descricao[]" placeholder="porta/observação"/>
+                    </div>
+
+                    <div class="row" style="justify-content:flex-end">
+                      <button type="button" class="btn small danger" onclick="this.closest('.mcard').remove()">Remover</button>
+                    </div>
+                  </div>
+                </div>
               <?php endif; ?>
             </div>
-          </div>
 
-          <div class="divider"></div>
+            <button type="button" class="btn small" id="add-attach" style="margin-top:8px;">+ Adicionar vínculo</button>
 
-          <p class="subtitle">Documentos</p>
+            <div style="height:10px"></div>
 
-          <?php if ($id > 0): ?>
-            <div class="card" style="margin-bottom:12px;">
-              <p class="hint" style="margin:0 0 10px 0;">Arquivos já anexados (clique para baixar):</p>
-
-              <?php if (!empty($anexos['foto'])): ?>
-                <div style="margin-bottom:8px;">
-                  <strong>Fotos</strong>
-                  <ul style="margin:6px 0 0 18px;">
-                    <?php foreach ($anexos['foto'] as $p): ?>
-                      <li>
-                        <a href="<?= h(anexo_href($p)) ?>" target="_blank" rel="noopener">baixar</a>
-                        — <?= h(anexo_label($p)) ?>
-                      </li>
-                    <?php endforeach; ?>
-                  </ul>
-                </div>
-              <?php endif; ?>
-
-              <?php if (!empty($anexos['contrato'])): ?>
-                <div style="margin-bottom:8px;">
-                  <strong>Garantia/Contrato</strong>
-                  <ul style="margin:6px 0 0 18px;">
-                    <?php foreach ($anexos['contrato'] as $p): ?>
-                      <li>
-                        <a href="<?= h(anexo_href($p)) ?>" target="_blank" rel="noopener">baixar</a>
-                        — <?= h(anexo_label($p)) ?>
-                      </li>
-                    <?php endforeach; ?>
-                  </ul>
-                </div>
-              <?php endif; ?>
-
-              <?php if (!empty($anexos['outros'])): ?>
+            <div class="mcard">
+              <div class="mgrid" id="atrelados-wrap">
                 <div>
-                  <strong>Outros</strong>
-                  <ul style="margin:6px 0 0 18px;">
-                    <?php foreach ($anexos['outros'] as $p): ?>
-                      <li>
-                        <a href="<?= h(anexo_href($p)) ?>" target="_blank" rel="noopener">baixar</a>
-                        — <?= h(anexo_label($p)) ?>
-                      </li>
-                    <?php endforeach; ?>
-                  </ul>
+                  <label>Ativos atrelados</label>
+                  <div class="hint">Buscar por ID, nome, TAG, S/N e adicionar como “depends”.</div>
                 </div>
-              <?php endif; ?>
 
-              <?php if (empty($anexos['foto']) && empty($anexos['contrato']) && empty($anexos['outros'])): ?>
-                <div class="hint">Nenhum arquivo anexado ainda.</div>
-              <?php endif; ?>
-            </div>
-          <?php endif; ?>
+                <div class="mgrid two" style="align-items:end">
+                  <div>
+                    <label>Buscar</label>
+                    <input type="text" id="busca_atrelado" placeholder="Digite para buscar..." list="sug_ativos"/>
+                    <datalist id="sug_ativos"></datalist>
+                  </div>
+                  <div class="row" style="justify-content:flex-end">
+                    <button type="button" class="btn small" id="btn-add-atrelado">+ Adicionar</button>
+                  </div>
+                </div>
 
-          <div class="grid cols-3">
-            <div class="stack">
-              <label>Fotos</label>
-              <div class="file-zone">
-                <div class="hint" id="fotos_preview" style="margin:0 0 8px 0;"></div>
-                Arraste aqui ou
-                <button type="button" class="btn small" onclick="document.getElementById('fotos').click()">escolher</button>
-                <input id="fotos" type="file" name="fotos[]" accept="image/*" multiple/>
+                <div id="atrelados-list" class="mgrid">
+                  <?php if (!empty($atrelados)): foreach ($atrelados as $a): ?>
+                    <div class="chip" data-id="<?= (int)$a['id'] ?>" style="display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid #ddd;border-radius:16px;">
+                      <input type="hidden" name="atrelados[]" value="<?= (int)$a['id'] ?>"/>
+                      <span><?= h($a['label']) ?></span>
+                      <button type="button" class="btn small danger" onclick="this.closest('.chip').remove()">Remover</button>
+                    </div>
+                  <?php endforeach; else: ?>
+                    <div class="hint">Nenhum atrelado adicionado.</div>
+                  <?php endif; ?>
+                </div>
               </div>
             </div>
 
-            <div class="stack">
-              <label>Garantia/Contrato (PDF)</label>
-              <div class="file-zone">
-                <div class="hint" id="contrato_preview" style="margin:0 0 8px 0;"></div>
-                Arraste aqui ou
-                <button type="button" class="btn small" onclick="document.getElementById('contrato_pdf').click()">escolher</button>
-                <input id="contrato_pdf" type="file" name="contrato_pdf" accept="application/pdf"/>
-              </div>
-            </div>
+          </div>
+        </details>
 
-            <div class="stack">
-              <label>Outros</label>
-              <div class="file-zone">
-                <div class="hint" id="outros_preview" style="margin:0 0 8px 0;"></div>
-                Arraste aqui ou
-                <button type="button" class="btn small" onclick="document.getElementById('outros').click()">escolher</button>
-                <input id="outros" type="file" name="outros[]" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.webp"/>
+        <!-- ===== Documentos ===== -->
+        <details class="msec">
+          <summary>Documentos / anexos</summary>
+          <div class="msec-body">
+            <?php if ($id > 0): ?>
+              <div class="mcard" style="border:1px solid #eee;">
+                <div class="hint" style="margin-bottom:8px;">Arquivos já anexados:</div>
+
+                <?php if (!empty($anexos['foto'])): ?>
+                  <div style="margin-bottom:8px;">
+                    <strong>Fotos</strong>
+                    <ul style="margin:6px 0 0 18px;">
+                      <?php foreach ($anexos['foto'] as $p): ?>
+                        <li><a href="<?= h(anexo_href($p)) ?>" target="_blank" rel="noopener">baixar</a> — <?= h(anexo_label($p)) ?></li>
+                      <?php endforeach; ?>
+                    </ul>
+                  </div>
+                <?php endif; ?>
+
+                <?php if (!empty($anexos['contrato'])): ?>
+                  <div style="margin-bottom:8px;">
+                    <strong>Garantia/Contrato</strong>
+                    <ul style="margin:6px 0 0 18px;">
+                      <?php foreach ($anexos['contrato'] as $p): ?>
+                        <li><a href="<?= h(anexo_href($p)) ?>" target="_blank" rel="noopener">baixar</a> — <?= h(anexo_label($p)) ?></li>
+                      <?php endforeach; ?>
+                    </ul>
+                  </div>
+                <?php endif; ?>
+
+                <?php if (!empty($anexos['outros'])): ?>
+                  <div>
+                    <strong>Outros</strong>
+                    <ul style="margin:6px 0 0 18px;">
+                      <?php foreach ($anexos['outros'] as $p): ?>
+                        <li><a href="<?= h(anexo_href($p)) ?>" target="_blank" rel="noopener">baixar</a> — <?= h(anexo_label($p)) ?></li>
+                      <?php endforeach; ?>
+                    </ul>
+                  </div>
+                <?php endif; ?>
+
+                <?php if (empty($anexos['foto']) && empty($anexos['contrato']) && empty($anexos['outros'])): ?>
+                  <div class="hint">Nenhum arquivo anexado ainda.</div>
+                <?php endif; ?>
+              </div>
+            <?php endif; ?>
+
+            <div class="mgrid">
+              <div class="stack">
+                <label>Fotos</label>
+                <div class="file-zone">
+                  <div class="hint" id="fotos_preview" style="margin:0 0 8px 0;"></div>
+                  <button type="button" class="btn small" onclick="document.getElementById('fotos').click()">Escolher fotos</button>
+                  <input id="fotos" type="file" name="fotos[]" accept="image/*" multiple style="display:none"/>
+                </div>
+              </div>
+
+              <div class="stack">
+                <label>Garantia/Contrato (PDF)</label>
+                <div class="file-zone">
+                  <div class="hint" id="contrato_preview" style="margin:0 0 8px 0;"></div>
+                  <button type="button" class="btn small" onclick="document.getElementById('contrato_pdf').click()">Escolher PDF</button>
+                  <input id="contrato_pdf" type="file" name="contrato_pdf" accept="application/pdf" style="display:none"/>
+                </div>
+              </div>
+
+              <div class="stack">
+                <label>Outros</label>
+                <div class="file-zone">
+                  <div class="hint" id="outros_preview" style="margin:0 0 8px 0;"></div>
+                  <button type="button" class="btn small" onclick="document.getElementById('outros').click()">Escolher arquivos</button>
+                  <input id="outros" type="file" name="outros[]" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.webp" style="display:none"/>
+                </div>
               </div>
             </div>
           </div>
+        </details>
 
-          <div class="divider"></div>
-
-          <div>
+        <!-- ===== Observações ===== -->
+        <details class="msec">
+          <summary>Observações</summary>
+          <div class="msec-body">
             <label>Observações</label>
             <textarea name="observacoes" placeholder="Observações gerais"><?= h($rec['observacoes']) ?></textarea>
           </div>
+        </details>
 
-          <div class="divider"></div>
-
-          <div style="display:flex;justify-content:flex-end;gap:10px">
-            <a class="btn" href="ativos-listar.php">Cancelar</a>
-            <button class="btn primary">Salvar</button>
-          </div>
-        </form>
-
-        <div class="card">
-          <p class="hint">Os campos se adaptam conforme o seu schema (detecção de colunas). “Próxima manutenção” é recalculada por trigger ou na aplicação.</p>
+        <div class="mfooterbar">
+          <a class="btn" href="ativos-listar.php">Cancelar</a>
+          <button class="btn primary">Salvar</button>
         </div>
 
+      </form>
+
+      <div class="mcard">
+        <div class="hint">Mobile: seções recolhíveis. Campos continuam “auto-detect” por schema. Próxima manutenção é cálculo visual aqui.</div>
       </div>
-    </section>
+
+    </div>
   </div>
-</div>
 
 <?php include_once ROOT_PATH . 'system/includes/code_footer.php'; ?>
 
@@ -2082,7 +2002,6 @@ include_once ROOT_PATH . 'system/includes/head.php';
     const on = chkCat && chkCat.checked;
     if (wrapCat) wrapCat.style.display = on ? '' : 'none';
   }
-
   chkCat?.addEventListener('change', syncCatUI);
   syncCatUI();
 
@@ -2094,7 +2013,6 @@ include_once ROOT_PATH . 'system/includes/head.php';
     const on = chkDep && chkDep.checked;
     if (wrapDep) wrapDep.style.display = on ? '' : 'none';
   }
-
   chkDep?.addEventListener('change', syncDepUI);
   syncDepUI();
 
@@ -2124,18 +2042,24 @@ include_once ROOT_PATH . 'system/includes/head.php';
     if (!wrap) return;
 
     const el = document.createElement('div');
-    el.className = 'grid cols-4';
-    el.style.alignItems = 'end';
+    el.className = 'mcard';
+    el.style.border = '1px solid #eee';
+    el.style.borderRadius = '12px';
+    el.style.padding = '12px';
 
     let optHtml = '<option value="">—</option>';
     const anySel = document.querySelector('#attach-list select[name="rel_tipo[]"]');
     if (anySel) optHtml = anySel.innerHTML;
 
     el.innerHTML = `
-      <div><label>Tipo</label><select name="rel_tipo[]">${optHtml}</select></div>
-      <div><label>Ativo destino (ID)</label><input type="number" name="rel_destino[]" placeholder="ID do ativo"/></div>
-      <div><label>Descrição</label><input type="text" name="rel_descricao[]" placeholder="porta/observação"/></div>
-      <div class="row"><button type="button" class="btn small danger" onclick="this.closest('.grid').remove()">Remover</button></div>
+      <div class="mgrid">
+        <div><label>Tipo</label><select name="rel_tipo[]">${optHtml}</select></div>
+        <div><label>Ativo destino (ID)</label><input type="number" name="rel_destino[]" placeholder="ID do ativo"/></div>
+        <div><label>Descrição</label><input type="text" name="rel_descricao[]" placeholder="porta/observação"/></div>
+        <div class="row" style="justify-content:flex-end">
+          <button type="button" class="btn small danger" onclick="this.closest('.mcard').remove()">Remover</button>
+        </div>
+      </div>
     `;
 
     wrap.appendChild(el);
@@ -2240,7 +2164,7 @@ include_once ROOT_PATH . 'system/includes/head.php';
     const chip = document.createElement('div');
     chip.className = 'chip';
     chip.dataset.id = String(id);
-    chip.style.cssText = 'display:flex;gap:8px;align-items:center;padding:6px 10px;border:1px solid #ddd;border-radius:16px;';
+    chip.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid #ddd;border-radius:16px;';
 
     chip.innerHTML = `
       <input type="hidden" name="atrelados[]" value="${id}"/>
@@ -2268,7 +2192,6 @@ include_once ROOT_PATH . 'system/includes/head.php';
   $btnAddAtr?.addEventListener('click', () => {
     const esc = resolveEscolhaAtual();
     if (!esc) { alert('Selecione um item da lista ou informe o ID no formato #123.'); return; }
-
     addChip(esc.id, esc.label);
 
     if ($buscaAtr) $buscaAtr.value = '';
@@ -2277,10 +2200,7 @@ include_once ROOT_PATH . 'system/includes/head.php';
   });
 
   $buscaAtr?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      $btnAddAtr?.click();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); $btnAddAtr?.click(); }
   });
 </script>
 
@@ -2301,21 +2221,18 @@ include_once ROOT_PATH . 'system/includes/head.php';
   function makeSelect(options, placeholder = '— selecione —') {
     const sel = document.createElement('select');
     sel.innerHTML = `<option value="">${placeholder}</option>`;
-
     (options || []).forEach(o => {
       const opt = document.createElement('option');
       opt.value = String(o.id);
       opt.textContent = o.label;
       sel.appendChild(opt);
     });
-
     return sel;
   }
 
   async function initCascade({ slug, containerId, hiddenId, enabled }) {
     const box = document.getElementById(containerId);
     const hid = document.getElementById(hiddenId);
-
     if (!box || !hid) return;
 
     box.innerHTML = '';
@@ -2342,7 +2259,6 @@ include_once ROOT_PATH . 'system/includes/head.php';
           if (parseInt(s.dataset.level, 10) > lv) s.remove();
         });
 
-        // atualiza hidden com o último selecionado válido
         const v = parseInt(sel.value || '0', 10) || 0;
 
         if (!v) {
@@ -2359,7 +2275,6 @@ include_once ROOT_PATH . 'system/includes/head.php';
         await buildFrom(v, lv + 1);
       });
 
-      // se preselecionado, tenta descer
       const chosen = parseInt(sel.value || '0', 10) || 0;
       if (chosen) {
         hid.value = String(chosen);
@@ -2371,7 +2286,6 @@ include_once ROOT_PATH . 'system/includes/head.php';
     await buildFrom(0, 0);
   }
 
-  // init Setor/Subsetor
   initCascade({
     slug: 'sector',
     containerId: 'sector_cascade',
@@ -2379,7 +2293,6 @@ include_once ROOT_PATH . 'system/includes/head.php';
     enabled: <?= ($listIdSector ? 'true' : 'false') ?>
   });
 
-  // init Categoria de Ativos (lista)
   initCascade({
     slug: 'asset_category',
     containerId: 'cat_cascade',
@@ -2396,7 +2309,6 @@ include_once ROOT_PATH . 'system/includes/head.php';
       const files = Array.from(inp.files || []);
       if (!files.length) { box.textContent = ''; return; }
 
-      // mostra até 6 nomes, depois “+ N…”
       const names = files.map(f => f.name);
       const shown = names.slice(0, 6);
       const rest = names.length - shown.length;

@@ -4,7 +4,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../../config.php';
 // Autenticação e conexão
 require_once ROOT_PATH . '/system/config/autenticacao.php';
 require_once ROOT_PATH . 'system//config/connect.php';

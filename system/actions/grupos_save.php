@@ -6,8 +6,10 @@ require_once __DIR__ . '/../../config.php';
 require_once ROOT_PATH . '/system/config/autenticacao.php';
 require_once ROOT_PATH . '/system/config/connect.php';
 
-function redirect_msg($ok, $msg){
-  $qs = http_build_query(['ok'=>$ok?1:0,'msg'=>$msg]);
+function redirect_msg($ok, $msg, $id=null){
+  $qs = ['ok'=>$ok?1:0,'msg'=>$msg];
+  if ($id) $qs['id'] = (int)$id;
+  $qs = http_build_query($qs);
   header("Location: ".BASE_URL."/pages/grupos_form.php?{$qs}");
   exit;
 }
@@ -25,7 +27,7 @@ try {
   $ativo     = isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1;
   $id        = isset($_POST['id']) && $_POST['id']!=='' ? (int)$_POST['id'] : null; // se usar o mesmo para update
 
-  if ($nome === '') redirect_msg(false, 'Nome é obrigatório.');
+  if ($nome === '') redirect_msg(false, 'Nome é obrigatório.', $id);
   if ($id && $parent_id && $id === $parent_id) redirect_msg(false, 'Grupo não pode ser pai de si mesmo.');
 
   // (Opcional) valida se o parent_id existe (quando informado)
@@ -78,7 +80,7 @@ try {
 
   // Nada de path_cache/depth aqui: sua estrutura usa closure table + triggers
 
-  redirect_msg(true, $msg);
+  redirect_msg(true, $msg, $id);
 
 } catch (mysqli_sql_exception $e) {
   // Em dev, mostre o erro detalhado; em prod, troque por log + mensagem genérica
